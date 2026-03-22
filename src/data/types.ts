@@ -65,7 +65,7 @@ export interface RotationDefaults {
   baseDefense: PositionMap;
   baseOffense: PositionMap;
   servePhases: Phase[];       // 3 phases: pre-serve → serve → base defense
-  receivePhases: Phase[];     // 5 phases: receive → pass → set → attack → ball over
+  receivePhases: Phase[];     // 3 phases: serve receive → transition → base defense
 }
 
 export interface RallyStep {

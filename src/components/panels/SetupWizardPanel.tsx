@@ -68,7 +68,7 @@ const initialConfirm = (): RotConfirm => ({
 
 // Phase labels for display
 const SERVE_PHASE_LABELS = ['Pre-Serve', 'Ball Crosses Net', 'Base Defense'];
-const RECEIVE_PHASE_LABELS = ['Serve Receive', 'Pass', 'Set', 'Attack', 'Base'];
+const RECEIVE_PHASE_LABELS = ['Serve Receive', 'Transition', 'Base Defense'];
 
 export function SetupWizardPanel() {
   const tab = usePlaybookStore(s => s.tab);
@@ -134,7 +134,6 @@ export function SetupWizardPanel() {
     if (teamAnimProg >= 99) {
       setTeamAnimProg(0);
     }
-    setTeamAnimScenario(scenario);
     setTeamAnimPlaying(true);
     setIsEditingPhase(false);
   };
@@ -155,7 +154,6 @@ export function SetupWizardPanel() {
     setTeamAnimProg(prog);
     setTeamAnimPhaseIndex(idx);
     setTeamAnimPlaying(false);
-    setTeamAnimScenario(scenario);
     setIsEditingPhase(true);
   };
 

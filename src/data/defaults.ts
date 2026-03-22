@@ -463,156 +463,95 @@ export function buildServePhases(
 
 // ═══════════════════════════════════════════════════════════════
 // Phase Generation — Receive Phases (opponent serves to us)
-// 5 phases: Serve Receive → Pass → Set → Attack → Base
-// Reference: volleyball_positioning_reference.md
+// 4 phases: Serve Receive → The Pass → Generic Attack → Base Defense
 //
 // Phase 1: Stacked serve receive (setter hidden, passers spread)
-// Phase 2: Pass contact (L platforms ball, S sprints to target)
-// Phase 3: Set contact (S at target, hitters approaching attack positions)
-// Phase 4: Attack (OH attacks from left antenna, team in coverage)
-// Phase 5: Ball over net → everyone transitions to BASE positions
+// Phase 2: The Pass (Passers anchor, Setter releases to target, Hitters open up)
+// Phase 3: Generic Attack (Setter at target, one front-row player attacks, others cover)
+// Phase 4: Base Defense (Ball assumed over net, everyone sprints to base)
 // ═══════════════════════════════════════════════════════════════
 
 export function buildReceivePhases(system: System, rotation: Rotation): Phase[] {
   const layout = ROTATION_LAYOUTS[system][rotation];
   const isSetterFront = layout.front.includes('S');
   const base = generateBasePositions(system, rotation);
-
-  // Phase 1: Stacked serve receive
   const srPos = serveReceivePositions(system, rotation);
 
-  // Phase 2: Pass contact — L platforms ball, S moving toward target
-  // Others begin transitioning toward attack/coverage positions
-  const passPos: PositionMap = {} as PositionMap;
+  // 1. Determine the active setter
+  let activeSetterId: PlayerId = 'S';
+  if (system === '6-2') {
+    activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
+  } else if (system === '4-2') {
+    activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
+  }
+
   const setterTarget = { ...SET_TGT }; // (395, 318)
   const ids: PlayerId[] = ['S', 'OP', 'MB', 'OH', 'RS', 'L'];
 
-  // Setter sprints toward target — how far depends on rotation difficulty
+  // 2. Phase 2: The Pass
+  const passPos: PositionMap = {} as PositionMap;
   const setterPassProgress: Record<Rotation, number> = {
-    1: 0.5,   // Medium — S from right-back
-    2: 0.45,  // Medium — S from center-back cheating right
-    3: 0.3,   // Hard — S from left-back, long diagonal
-    4: 0.7,   // Easy — S already at net, sliding right
-    5: 0.8,   // Very easy — S near target
-    6: 1.0,   // Zero transition — already there
+    1: 0.5, 2: 0.45, 3: 0.3, 4: 0.7, 5: 0.8, 6: 1.0,
   };
 
   for (const pid of ids) {
-    if (pid === 'S') {
-      // Setter sprinting toward target
-      passPos['S'] = lerpXY(srPos['S'], setterTarget, setterPassProgress[rotation]);
-    } else if (pid === 'L') {
-      // L stays roughly in place — passing the ball
-      passPos['L'] = { ...srPos['L'] };
-    } else if (pid === 'MB') {
-      // MB moves toward center net for quick approach
-      passPos['MB'] = lerpXY(srPos['MB'], xy(270, 330), 0.5);
-    } else if (pid === 'OH') {
-      // OH begins moving toward left antenna for outside attack
-      const ohTarget = layout.front.includes('OH') ? xy(120, 360) : xy(105, 560);
-      passPos['OH'] = lerpXY(srPos['OH'], ohTarget, 0.3);
-    } else if (pid === 'OP') {
-      // OP moves toward right side (or left if switching in R3)
-      const opTarget = layout.front.includes('OP')
-        ? (rotation === 3 ? xy(440, 340) : xy(440, 340)) // OP always wants right antenna
-        : xy(430, 580); // back-row OP stays deep right
-      passPos['OP'] = lerpXY(srPos['OP'], opTarget, 0.3);
+    if (pid === activeSetterId) {
+      // Setter sprints to target
+      passPos[pid] = lerpXY(srPos[pid], setterTarget, setterPassProgress[rotation] || 0.6);
+    } else if (layout.back.includes(pid)) {
+      // Passers hold their lanes
+      passPos[pid] = { ...srPos[pid] };
     } else {
-      // RS and others — begin transitioning toward coverage
-      passPos[pid] = lerpXY(srPos[pid], base[pid], 0.2);
+      // Front row players open up off the net
+      passPos[pid] = lerpXY(srPos[pid], xy(srPos[pid].x, Math.max(srPos[pid].y, 380)), 0.5);
     }
   }
 
-  // Phase 3: Set contact — S at target, hitters in approach positions
-  const setPos: PositionMap = {} as PositionMap;
-  for (const pid of ids) {
-    if (pid === 'S') {
-      setPos['S'] = { ...setterTarget };
-    } else if (pid === 'OH') {
-      // OH approaching for outside attack (left antenna, pulled back for approach)
-      setPos['OH'] = layout.front.includes('OH') ? xy(100, 380) : xy(105, 570);
-    } else if (pid === 'MB') {
-      // MB at center net for quick attack
-      setPos['MB'] = layout.front.includes('MB') ? xy(250, 330) : xy(270, 550);
-    } else if (pid === 'OP') {
-      // OP at right antenna for attack (or back-row position)
-      setPos['OP'] = layout.front.includes('OP') ? xy(440, 340) : xy(420, 560);
-    } else if (pid === 'L') {
-      // L moving to coverage behind hitters
-      setPos['L'] = xy(270, 620);
-    } else if (pid === 'RS') {
-      // RS in coverage/back-row position
-      setPos['RS'] = layout.front.includes('RS') ? xy(440, 340) : xy(380, 580);
-    }
-  }
-
-  // Phase 4: Attack — OH attacks from left antenna (default)
-  // In front-row setter rotations, OP hits from wherever they are
+  // 3. Phase 3: Generic Attack
   const atkPos: PositionMap = {} as PositionMap;
-  const attackerIsOH = layout.front.includes('OH');
+  
+  // Find a generic attacker (first front-row player who isn't the active setter)
+  const frontHitters = layout.front.filter(pid => pid !== activeSetterId);
+  const attackerId = frontHitters[0] || 'OH'; 
+  const attackCoords = xy(88, 340); // Standard Left Antenna
+
   for (const pid of ids) {
-    if (pid === 'S') {
-      atkPos['S'] = { ...setterTarget }; // stays at target during attack
-    } else if (pid === 'OH' && attackerIsOH) {
-      atkPos['OH'] = xy(88, 340); // left antenna — attacking!
-    } else if (pid === 'MB') {
-      // MB at center net — could also be attacking quick
-      atkPos['MB'] = layout.front.includes('MB') ? xy(270, 330) : xy(270, 560);
-    } else if (pid === 'OP') {
-      atkPos['OP'] = layout.front.includes('OP') ? xy(452, 340) : xy(420, 560);
-    } else if (pid === 'L') {
-      // L in coverage position behind attacker
-      atkPos['L'] = xy(200, 500);
-    } else if (pid === 'OH' && !attackerIsOH) {
-      // OH back row — coverage
-      atkPos['OH'] = xy(130, 560);
-    } else if (pid === 'RS') {
-      atkPos['RS'] = layout.front.includes('RS') ? xy(440, 340) : xy(350, 560);
+    if (pid === activeSetterId) {
+      atkPos[pid] = { ...setterTarget }; // Setter arrives at target
+    } else if (pid === attackerId) {
+      atkPos[pid] = { ...attackCoords }; // Attacker goes to antenna
+    } else {
+      // Everyone else takes a step into generic coverage (toward center of court)
+      atkPos[pid] = lerpXY(passPos[pid], xy(270, 450), 0.4);
     }
   }
 
-  // Phase 5: Base — ball over net, everyone at home positions
-  // (base already computed above)
-
-  // Phase notes
+  // Phase notes tailored for setup mapping
   const srNotes: PhaseNotes = {
-    S: isSetterFront
-      ? 'At net — ready to set. No transition needed.'
-      : `Back row — hidden behind teammates. Will sprint to target after pass.${rotation === 3 ? ' HARDEST rotation — full diagonal.' : ''}`,
-    OP: layout.front.includes('OP') ? 'At net — ready for right-side attack.' : 'Back row — staying out of passing lanes.',
-    MB: 'At net — never passes. Ready for quick attack.',
-    OH: layout.front.includes('OH') ? 'Pulled back from net to pass. Will transition to left antenna.' : 'Back row — passing.',
+    S: isSetterFront ? 'At net — ready to set.' : `Back row — hidden. Will sprint to target.`,
+    OP: layout.front.includes('OP') ? 'At net.' : 'Back row — passing/defense.',
+    MB: 'At net — ready to drop off.',
+    OH: layout.front.includes('OH') ? 'Pulled back to pass.' : 'Back row — passing.',
     RS: layout.back.includes('RS') ? 'Back row — passing.' : 'At net.',
-    L: 'Primary passer — covers largest zone. Deep center.',
+    L: 'Primary passer. Deep center.',
   };
 
   const passNotes: PhaseNotes = {
-    S: isSetterFront
-      ? 'Moving to target to set.'
-      : `Sprinting to target (${rotation === 3 ? 'long diagonal — team gives S time' : 'moving forward-right'}).`,
-    OP: layout.front.includes('OP') ? 'Approaching for right-side attack.' : 'Back-row positioning.',
-    MB: 'Approaching center net for quick attack option.',
-    OH: layout.front.includes('OH') ? 'Moving to left antenna for outside attack.' : 'Back-row coverage.',
-    RS: 'Transitioning to coverage position.',
-    L: 'Passed the ball — moving to coverage.',
-  };
-
-  const setNotes: PhaseNotes = {
-    S: 'At target — setting the ball to hitter.',
-    OP: layout.front.includes('OP') ? 'Right antenna — ready to attack if set comes.' : 'Back-row attack option.',
-    MB: layout.front.includes('MB') ? 'Center net — quick attack option.' : 'Back-row coverage.',
-    OH: layout.front.includes('OH') ? 'Left antenna — primary outside attack option.' : 'Back-row pipe option.',
-    RS: 'In coverage position.',
-    L: 'Coverage behind hitters — ready for blocked ball.',
+    S: isSetterFront ? 'Moving to target.' : 'Sprinting to target after pass.',
+    OP: layout.front.includes('OP') ? 'Opening up off the net.' : 'Holding passing position.',
+    MB: 'Opening up off the net.',
+    OH: layout.front.includes('OH') ? 'Opening up off the net.' : 'Holding passing position.',
+    RS: layout.back.includes('RS') ? 'Holding passing position.' : 'Opening up off the net.',
+    L: 'Passed the ball — holding platform.',
   };
 
   const atkNotes: PhaseNotes = {
-    S: 'At target — watching attack, ready for next play.',
-    OP: layout.front.includes('OP') ? 'Right side — secondary attack option or coverage.' : 'Back-row coverage.',
-    MB: layout.front.includes('MB') ? 'Center — quick or coverage.' : 'Back-row coverage.',
-    OH: attackerIsOH ? 'ATTACKING from left antenna!' : 'Back-row — pipe attack or coverage.',
-    RS: 'Coverage — ready for blocked ball.',
-    L: 'Coverage behind attacker — reading the play.',
+    S: 'At target, distributing the ball.',
+    OP: attackerId === 'OP' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
+    MB: attackerId === 'MB' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
+    OH: attackerId === 'OH' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
+    RS: attackerId === 'RS' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
+    L: 'Moving into generic attack coverage.',
   };
 
   const baseNotes: PhaseNotes = {
@@ -625,18 +564,16 @@ export function buildReceivePhases(system: System, rotation: Rotation): Phase[] 
   };
 
   // Ball positions through the sequence
-  const ballSR = xy(270, 100);          // Opponent baseline
-  const ballPass = xy(270, 600);        // Ball at passer contact
-  const ballSet = { ...B_SET };         // Ball at setter hands (395, 318)
+  const ballSR = xy(270, 100);          // Opponent baseline serving
+  const ballPass = xy(270, 580);        // Ball hits passers
   const ballAtk = { ...BK_L };          // Ball at left antenna attack (82, 288)
-  const ballOver = { ...OVR_XL };       // Ball crosses to opponent side (448, 98)
+  const ballBase = xy(270, 112);        // Ball crosses back over the net
 
   return [
     { label: 'Serve Receive', ball: ballSR, pos: srPos, notes: srNotes },
-    { label: 'Pass', ball: ballPass, pos: passPos, notes: passNotes },
-    { label: 'Set', ball: ballSet, pos: setPos, notes: setNotes },
-    { label: 'Attack', ball: ballAtk, pos: atkPos, notes: atkNotes },
-    { label: 'Base', ball: ballOver, pos: base, notes: baseNotes },
+    { label: 'The Pass', ball: ballPass, pos: passPos, notes: passNotes },
+    { label: 'Generic Attack', ball: ballAtk, pos: atkPos, notes: atkNotes },
+    { label: 'Base Defense', ball: ballBase, pos: base, notes: baseNotes },
   ];
 }
 
