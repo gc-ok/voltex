@@ -81,12 +81,14 @@ export function Court() {
   let violatedIds = new Set<PlayerId>();
 
   if (isTeam) {
-    // Check for team animation (wizard walkthrough)
     const key = rotKey(teamSystem, teamRotation);
     const rd = rotationDefaults[key];
-    if (teamAnimPlaying && rd) {
+    
+    // Check if we are in the setup wizard and have a scenario selected
+    if (tab === 'setup' && teamAnimScenario && rd) {
       const phases = teamAnimScenario === 'serve' ? rd.servePhases : rd.receivePhases;
       if (phases?.length) {
+        // ALWAYS lerp based on teamAnimProg, whether playing or paused!
         const result = lerp(teamAnimProg, phases);
         positions = result.pos;
         ball = result.ball;
@@ -95,6 +97,7 @@ export function Court() {
         ball = { x: -100, y: -100 };
       }
     } else {
+      // Standard 'My Team' fallback
       positions = teamPositions;
       ball = { x: -100, y: -100 };
     }
@@ -170,9 +173,19 @@ export function Court() {
     // Get positions depending on mode
     let curPos: PositionMap;
     if (curTab === 'myteam' || curTab === 'setup') {
-      // If team animation is showing, use the animated positions for hit-testing
+      // If team animation is showing (or paused at any phase), use lerped positions for hit-testing
       const pbState = usePlaybookStore.getState();
-      if (pbState.teamAnimProg > 0 || pbState.teamAnimPlaying) {
+      if (curTab === 'setup' && pbState.teamAnimScenario) {
+        const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
+        const tRd = useTeamStore.getState().rotationDefaults[tKey];
+        const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];
+        if (tPhases.length > 0) {
+          const tResult = lerp(pbState.teamAnimProg, tPhases);
+          curPos = tResult.pos;
+        } else {
+          curPos = useTeamStore.getState().getCurrentPositions();
+        }
+      } else if (pbState.teamAnimProg > 0 || pbState.teamAnimPlaying) {
         const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
         const tRd = useTeamStore.getState().rotationDefaults[tKey];
         const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];

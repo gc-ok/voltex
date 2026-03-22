@@ -68,7 +68,7 @@ const initialConfirm = (): RotConfirm => ({
 
 // Phase labels for display
 const SERVE_PHASE_LABELS = ['Pre-Serve', 'Ball Crosses Net', 'Base Defense'];
-const RECEIVE_PHASE_LABELS = ['Serve Receive', 'Pass Contact', 'Set Contact', 'Attack', 'Ball Over Net'];
+const RECEIVE_PHASE_LABELS = ['Serve Receive', 'Pass', 'Set', 'Attack', 'Base'];
 
 export function SetupWizardPanel() {
   const tab = usePlaybookStore(s => s.tab);
@@ -124,20 +124,23 @@ export function SetupWizardPanel() {
   const phaseLabels = scenario === 'serve' ? SERVE_PHASE_LABELS : RECEIVE_PHASE_LABELS;
   const currentPhaseIdx = currentPhases.length > 0 ? phIdxFromProg(teamAnimProg, currentPhases.length) : 0;
 
-  // Play animation
+  // Play animation (resume from current position, or restart if finished)
   const playAnimation = () => {
-    setTeamAnimProg(0);
+    if (teamAnimProg >= 99) {
+      setTeamAnimProg(0);
+    }
     setTeamAnimScenario(scenario);
     setTeamAnimPlaying(true);
     setIsEditingPhase(false);
   };
 
-  // Pause at current position
+  // Pause at current position — enable editing
   const pauseAnimation = () => {
     setTeamAnimPlaying(false);
+    setIsEditingPhase(true);
   };
 
-  // Jump to specific phase
+  // Jump to specific phase — pauses and enables editing
   const jumpToPhase = (idx: number) => {
     if (currentPhases.length === 0) return;
     const n = currentPhases.length;
@@ -145,6 +148,7 @@ export function SetupWizardPanel() {
     setTeamAnimProg(prog);
     setTeamAnimPlaying(false);
     setTeamAnimScenario(scenario);
+    setIsEditingPhase(true);
   };
 
   // Confirm current rotation+scenario and auto-advance
@@ -639,32 +643,55 @@ export function SetupWizardPanel() {
             </div>
           </div>
 
-          {/* Phase dots + label */}
+          {/* Phase navigation + label */}
           <div style={{
             background: '#0d1e3a', borderRadius: 8, padding: '8px 10px',
             marginBottom: 10,
           }}>
+            {/* Phase label */}
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 6 }}>
-              {phaseLabels[currentPhaseIdx] || 'Ready'}
+              Phase {currentPhaseIdx + 1}/{phaseLabels.length}: {phaseLabels[currentPhaseIdx] || 'Ready'}
             </div>
-            <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+
+            {/* Phase step buttons — clickable with labels */}
+            <div style={{ display: 'flex', gap: 3, marginBottom: 8 }}>
               {phaseLabels.map((label, i) => (
                 <button
                   key={i}
                   onClick={() => jumpToPhase(i)}
                   title={label}
                   style={{
-                    flex: 1, height: 6, borderRadius: 3,
-                    background: i <= currentPhaseIdx ? 'var(--accent)' : '#1e3055',
-                    border: 'none', cursor: 'pointer',
-                    transition: 'background .2s',
+                    flex: 1, height: 22, borderRadius: 4,
+                    background: i === currentPhaseIdx ? 'var(--accent)' : i < currentPhaseIdx ? '#e8a83e50' : '#1e3055',
+                    color: i === currentPhaseIdx ? '#000' : i < currentPhaseIdx ? 'var(--accent)' : '#ffffff50',
+                    border: i === currentPhaseIdx ? '2px solid var(--accent)' : '1px solid #ffffff10',
+                    cursor: 'pointer',
+                    fontSize: 8, fontWeight: 700,
+                    transition: 'all .15s',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    padding: '0 2px',
                   }}
-                />
+                >
+                  {label}
+                </button>
               ))}
             </div>
 
-            {/* Play/Pause + Replay */}
-            <div style={{ display: 'flex', gap: 6 }}>
+            {/* Prev / Play-Pause / Next controls */}
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                onClick={() => jumpToPhase(Math.max(0, currentPhaseIdx - 1))}
+                disabled={currentPhaseIdx <= 0}
+                style={{
+                  width: 36, background: currentPhaseIdx > 0 ? '#1e3055' : '#0d1a2e',
+                  border: '1px solid #ffffff18', color: currentPhaseIdx > 0 ? 'var(--text)' : '#ffffff30',
+                  borderRadius: 6, padding: '6px',
+                  fontSize: 14, fontWeight: 900, cursor: currentPhaseIdx > 0 ? 'pointer' : 'default',
+                }}
+              >
+                ◀
+              </button>
               <button
                 onClick={teamAnimPlaying ? pauseAnimation : playAnimation}
                 style={{
@@ -675,23 +702,36 @@ export function SetupWizardPanel() {
               >
                 {teamAnimPlaying ? '⏸ Pause' : teamAnimProg >= 99 ? '↺ Replay' : '▶ Play'}
               </button>
+              <button
+                onClick={() => jumpToPhase(Math.min(phaseLabels.length - 1, currentPhaseIdx + 1))}
+                disabled={currentPhaseIdx >= phaseLabels.length - 1}
+                style={{
+                  width: 36, background: currentPhaseIdx < phaseLabels.length - 1 ? '#1e3055' : '#0d1a2e',
+                  border: '1px solid #ffffff18', color: currentPhaseIdx < phaseLabels.length - 1 ? 'var(--text)' : '#ffffff30',
+                  borderRadius: 6, padding: '6px',
+                  fontSize: 14, fontWeight: 900, cursor: currentPhaseIdx < phaseLabels.length - 1 ? 'pointer' : 'default',
+                }}
+              >
+                ▶
+              </button>
             </div>
           </div>
 
           {/* Edit tip */}
-          {!isEditingPhase ? (
+          {teamAnimPlaying ? (
             <div style={{
               fontSize: 11, color: '#ffffff60', lineHeight: 1.5, marginBottom: 8,
             }}>
-              Pause animation and drag players on the court to adjust positions for this phase.
+              Pause or click a phase to edit player positions.
             </div>
           ) : (
             <div style={{
               background: '#e8a83e10', border: '1px solid #e8a83e30',
               borderRadius: 7, padding: '6px 10px', marginBottom: 8,
               fontSize: 11, fontWeight: 700, color: 'var(--accent)',
+              lineHeight: 1.5,
             }}>
-              EDITING — Drag players on court. Changes save automatically.
+              EDITING PHASE {currentPhaseIdx + 1} — Drag players on court. Use ◀ ▶ to step through phases. Changes save automatically.
             </div>
           )}
 

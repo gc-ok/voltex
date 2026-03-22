@@ -107,39 +107,54 @@ export function generateDefensePositions(
 // - Back-row non-setter, non-L → left-back Z5 (~105, 600)
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+// Base Positions — High School Perimeter Defense
+// Players switch to these preferred positions after the serve.
+// ═══════════════════════════════════════════════════════════════
+
 export function generateBasePositions(system: System, rotation: Rotation): PositionMap {
   const layout = ROTATION_LAYOUTS[system][rotation];
-  const isSetterFront = layout.front.includes('S');
   const pos: PositionMap = {} as PositionMap;
 
-  // Front-row players switch to preferred net positions
-  if (isSetterFront) {
-    // S at right-front (target area), MB center, other hitter at left antenna
-    pos['S'] = xy(395, 340);
-    pos['MB'] = xy(270, 330);
-    const otherHitter = layout.front.find(p => p !== 'S' && p !== 'MB')!;
-    pos[otherHitter] = xy(88, 340);
-  } else {
-    // Standard 3-hitter: OH left, MB center, OP right
-    for (const pid of layout.front) {
-      if (pid === 'OH') pos['OH'] = xy(88, 340);
-      else if (pid === 'MB') pos['MB'] = xy(270, 330);
-      else if (pid === 'OP') pos['OP'] = xy(452, 340);
-      else pos[pid] = xy(270, 340); // fallback
-    }
+  // Determine active setter
+  let activeSetterId: PlayerId = 'S';
+  if (system === '6-2') {
+    activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
+  } else if (system === '4-2') {
+    activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
   }
 
-  // Back-row: S always Z1 right-back, L always Z6 deep center, other to Z5 left-back
-  if (!isSetterFront) {
-    pos['S'] = xy(440, 620);
-  }
-  pos['L'] = xy(270, 680);
+  // 1. Front-row players switch to preferred net positions
+  const z4 = layout.front[0], z3 = layout.front[1], z2 = layout.front[2];
+  
+  pos[z4] = xy(120, 340); // Standard Left antenna block
+  pos[z3] = xy(270, 330); // Standard Middle block
+  pos[z2] = xy(420, 340); // Standard Right antenna block
 
-  // Remaining back-row player(s) → left-back area
-  for (const pid of layout.back) {
-    if (!pos[pid]) {
-      pos[pid] = xy(105, 600);
-    }
+  // If the active setter is front row, ensure they slide to the Z2/Z3 gap (Target)
+  if (z4 === activeSetterId) pos[z4] = xy(350, 340);
+  if (z3 === activeSetterId) pos[z3] = xy(380, 340);
+
+  // 2. Back-row players switch to Perimeter Defense
+  const z5 = layout.back[0], z6 = layout.back[1], z1 = layout.back[2];
+
+  pos[z5] = xy(120, 580); // Left Back (Digging)
+  pos[z6] = xy(270, 680); // Middle Back (Deep / Libero base)
+  pos[z1] = xy(420, 580); // Right Back (Digging)
+
+  // 3. Setter Switching Rule
+  // If the active setter is in the back row, they ALWAYS switch to Right Back (Z1)
+  // so they have the shortest path to the net during a rally.
+  if (z5 === activeSetterId) { 
+    pos[z5] = xy(440, 560); // Setter runs to right-back
+    pos[z1] = xy(120, 580); // The original Z1 player crosses to left-back
+  } 
+  else if (z6 === activeSetterId) {
+    pos[z6] = xy(440, 560);
+    pos[z1] = xy(270, 680); // Original Z1 crosses to middle-back
+  }
+  else if (z1 === activeSetterId) {
+    pos[z1] = xy(440, 560); // Already in right-back area
   }
 
   return pos;
@@ -266,85 +281,107 @@ function lerpPositions(a: PositionMap, b: PositionMap, t: number): PositionMap {
 // - All positions respect overlap rules for the rotation
 // ═══════════════════════════════════════════════════════════════
 
-function serveReceivePositions(system: System, rotation: Rotation): PositionMap {
-  // Per-rotation stacked serve receive formations
-  // Each respects overlap rules and optimizes for setter shielding + transition
-  const srByRotation: Record<Rotation, PositionMap> = {
-    // R1: Front: OH(Z4) MB(Z3) OP(Z2). Back: RS(Z5) L(Z6) S(Z1)
-    // S back row at Z1 — hides far right-back behind OP(Z2)
-    // Passers: OH pulls back from Z4, RS at Z5, L at Z6
-    // Stacking: S+OP stack right, OH+RS stack left
-    1: {
-      S:  xy(470, 700),  // Far right-back, hidden behind OP. Short path to target
-      OP: xy(440, 330),  // Z2 right net — shields S, ready for right-side attack
-      MB: xy(300, 330),  // Z3 center-right net — ready for quick attack
-      OH: xy(130, 480),  // Z4 pulled back to pass left. Left of MB, in front of RS
-      RS: xy(130, 600),  // Z5 left-back, passing
-      L:  xy(270, 600),  // Z6 center-back, primary passer — largest zone
-    },
-    // R2: Front: OH(Z4) MB(Z3) OP(Z2). Back: RS(Z5) S(Z6) L(Z1)
-    // S back row at Z6 — cheats right behind OP/MB. Must stay right of RS, behind MB
-    // Passers: OH pulls back from Z4, L at Z1, RS at Z5
-    // Stacking: S cheats right toward target behind MB/OP
-    2: {
-      S:  xy(400, 560),  // Z6 cheating right, behind OP(Z2), right of RS(Z5)
-      OP: xy(440, 330),  // Z2 right net
-      MB: xy(300, 330),  // Z3 center net, slight right
-      OH: xy(130, 480),  // Z4 pulled back to pass left, left of MB, in front of RS
-      RS: xy(130, 620),  // Z5 left-back, passing
-      L:  xy(430, 600),  // Z1 right-back, passing
-    },
-    // R3: Front: OP(Z4) MB(Z3) OH(Z2). Back: S(Z5) L(Z6) RS(Z1)
-    // S back row at Z5 — HARDEST rotation, full diagonal sprint to target
-    // S hides left behind OP(Z4). After contact: OP switches right, OH switches left
-    // Passers: OH pulls back from Z2, L at Z6, RS at Z1
-    3: {
-      S:  xy(100, 580),  // Z5 left-back, hidden behind OP(Z4). Longest transition!
-      OP: xy(110, 330),  // Z4 left net — in front of S, will switch RIGHT after contact
-      MB: xy(270, 330),  // Z3 center net — stays center
-      OH: xy(400, 480),  // Z2 pulled back right to pass. Right of MB, in front of RS
-      L:  xy(270, 620),  // Z6 center-back, primary passer
-      RS: xy(430, 600),  // Z1 right-back, passing
-    },
-    // R4: Front: S(Z4) OP(Z3) MB(Z2). Back: OH(Z5) L(Z6) RS(Z1)
-    // S FRONT ROW at Z4 (left net) — will slide right along net to target
-    // Easy setter transition. Only 2 hitters: OP and MB
-    // Passers: OH at Z5, L at Z6, RS at Z1. "Stack everyone left" (JVA)
-    4: {
-      S:  xy(100, 330),  // Z4 left net — will slide right to target. Already at net!
-      OP: xy(200, 330),  // Z3 center-left net, right of S. Stacked left for transition
-      MB: xy(440, 330),  // Z2 right net, right of OP. In front of RS
-      OH: xy(100, 580),  // Z5 left-back, passing
-      L:  xy(270, 620),  // Z6 center-back, primary passer
-      RS: xy(430, 600),  // Z1 right-back, passing
-    },
-    // R5: Front: MB(Z4) S(Z3) OP(Z2). Back: OH(Z5) L(Z6) RS(Z1)
-    // S FRONT ROW at Z3 (center net) — near target, very easy transition
-    // Only 2 hitters: MB and OP
-    // Passers: OH at Z5, L at Z6, RS at Z1
-    5: {
-      S:  xy(330, 330),  // Z3 center-right net — already near target!
-      OP: xy(440, 330),  // Z2 right net, right of S
-      MB: xy(100, 330),  // Z4 left net, left of S. Ready for quick
-      OH: xy(130, 580),  // Z5 left-back, passing. Behind MB
-      L:  xy(270, 620),  // Z6 center-back, primary passer
-      RS: xy(430, 600),  // Z1 right-back, passing
-    },
-    // R6: Front: MB(Z4) OP(Z3) S(Z2). Back: OH(Z5) L(Z6) RS(Z1)
-    // S FRONT ROW at Z2 (right net) — ALREADY AT TARGET! Zero transition
-    // Only 2 hitters: MB and OP
-    // Passers: OH at Z5, L at Z6, RS at Z1
-    6: {
-      S:  xy(395, 318),  // Z2 right net — ALREADY AT TARGET! Zero transition
-      OP: xy(270, 330),  // Z3 center net, left of S
-      MB: xy(100, 330),  // Z4 left net — ready for quick center
-      OH: xy(130, 580),  // Z5 left-back, passing. Behind MB
-      L:  xy(270, 620),  // Z6 center-back, primary passer
-      RS: xy(430, 600),  // Z1 right-back, passing
-    },
-  };
+// ═══════════════════════════════════════════════════════════════
+// Serve Receive Stacked Positions (High School Standard)
+// Automatically adapts to 5-1, 6-2, and 4-2 systems by checking zones.
+// ═══════════════════════════════════════════════════════════════
 
-  return srByRotation[rotation];
+function serveReceivePositions(system: System, rotation: Rotation): PositionMap {
+  const layout = ROTATION_LAYOUTS[system][rotation];
+  const pos = {} as PositionMap;
+
+  // 1. Determine the active setter ID for this system/rotation
+  let activeSetterId: PlayerId = 'S';
+  if (system === '6-2') {
+    // In 6-2, setter is always back row. Could be S or RS depending on rotation.
+    activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
+  } else if (system === '4-2') {
+    // In 4-2, setter is always front row. Could be S or RS.
+    activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
+  }
+
+  // 2. Identify which ZONE (1-6) the active setter is currently in
+  let setterZone = 0;
+  if (layout.back[2] === activeSetterId) setterZone = 1;
+  else if (layout.back[1] === activeSetterId) setterZone = 6;
+  else if (layout.back[0] === activeSetterId) setterZone = 5;
+  else if (layout.front[0] === activeSetterId) setterZone = 4;
+  else if (layout.front[1] === activeSetterId) setterZone = 3;
+  else if (layout.front[2] === activeSetterId) setterZone = 2;
+
+  // Map players to their current rotational zones
+  const z4 = layout.front[0], z3 = layout.front[1], z2 = layout.front[2]; // Front row (Left to Right)
+  const z5 = layout.back[0],  z6 = layout.back[1],  z1 = layout.back[2];  // Back row (Left to Right)
+
+  // 3. Apply High School Stacking rules based on Setter Zone
+  // Rules: Respect overlaps (Z4 left of Z3, Z5 behind Z4, etc). Minimize setter run distance.
+  
+  if (setterZone === 1) {
+    // S in Z1 (Right Back). Stack Z1 tightly behind Z2.
+    pos[z2] = xy(420, 330); // Net right (ready to hit)
+    pos[z1] = xy(420, 390); // Stacked legally behind Z2! Practically at target.
+    pos[z3] = xy(280, 330); // Net middle 
+    
+    // Passers: 3-man cup
+    pos[z4] = xy(140, 480); // Pulled back short-left to pass
+    pos[z6] = xy(270, 580); // Passing middle
+    pos[z5] = xy(140, 580); // Passing deep-left
+  } 
+  else if (setterZone === 6) {
+    // S in Z6 (Middle Back). Stack Z6 tightly behind Z3.
+    pos[z3] = xy(350, 330); // Net middle (cheated right)
+    pos[z6] = xy(350, 390); // Stacked legally behind Z3
+    pos[z2] = xy(450, 330); // Net right
+    
+    // Passers
+    pos[z4] = xy(140, 480); // Pulled back short-left
+    pos[z5] = xy(140, 580); // Passing left
+    pos[z1] = xy(420, 580); // Passing right
+  } 
+  else if (setterZone === 5) {
+    // S in Z5 (Left Back). Stack Z5 tightly behind Z4.
+    pos[z4] = xy(120, 330); // Net left
+    pos[z5] = xy(120, 390); // Stacked legally behind Z4
+    pos[z3] = xy(270, 330); // Net middle
+    
+    // Passers
+    pos[z2] = xy(400, 480); // Pulled back short-right
+    pos[z6] = xy(270, 580); // Passing middle
+    pos[z1] = xy(420, 580); // Passing deep-right
+  } 
+  else if (setterZone === 4) {
+    // S in Z4 (Front Row). Already at net, ready to slide right.
+    pos[z4] = xy(150, 330); // Net left
+    pos[z3] = xy(300, 330); // Net middle
+    pos[z2] = xy(420, 330); // Net right
+    
+    // Passers: Standard 3-man line
+    pos[z5] = xy(140, 580); // Passing left
+    pos[z6] = xy(270, 580); // Passing middle
+    pos[z1] = xy(420, 580); // Passing right
+  } 
+  else if (setterZone === 3) {
+    // S in Z3 (Front Row). Very close to target.
+    pos[z4] = xy(120, 330); // Net left
+    pos[z3] = xy(350, 330); // Net middle (pushing to target)
+    pos[z2] = xy(440, 330); // Net right
+    
+    pos[z5] = xy(140, 580); 
+    pos[z6] = xy(270, 580); 
+    pos[z1] = xy(420, 580); 
+  } 
+  else if (setterZone === 2) {
+    // S in Z2 (Front Row). At target.
+    pos[z4] = xy(120, 330); 
+    pos[z3] = xy(270, 330); 
+    pos[z2] = xy(400, 330); // Net right (At target!)
+    
+    pos[z5] = xy(140, 580); 
+    pos[z6] = xy(270, 580); 
+    pos[z1] = xy(420, 580); 
+  }
+
+  return pos;
 }
 
 // ═══════════════════════════════════════════════════════════════
