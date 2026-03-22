@@ -57,6 +57,7 @@ export interface QuizQuestion {
 export type System = '5-1' | '6-2' | '4-2';
 export type Rotation = 1 | 2 | 3 | 4 | 5 | 6;
 export type FormationContext = 'serveReceive' | 'baseDefense' | 'baseOffense';
+export type ComplexityLevel = 'basic' | 'standard' | 'advanced';
 
 export interface RotationDefaults {
   system: System;

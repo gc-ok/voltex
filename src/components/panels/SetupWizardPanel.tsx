@@ -67,8 +67,9 @@ const initialConfirm = (): RotConfirm => ({
 });
 
 // Phase labels for display
-const SERVE_PHASE_LABELS = ['Pre-Serve', 'Ball Crosses Net', 'Base Defense'];
-const RECEIVE_PHASE_LABELS = ['Serve Receive', 'Transition', 'Base Defense'];
+const SERVE_PHASE_LABELS = ['Pre-Serve', 'Ball Crosses Net'];
+// Change this line:
+const RECEIVE_PHASE_LABELS = ['Serve Receive', 'The Pass', 'The Set', 'OFFENSIVE PLAY', 'Base Defense'];
 
 export function SetupWizardPanel() {
   const tab = usePlaybookStore(s => s.tab);
@@ -255,7 +256,7 @@ export function SetupWizardPanel() {
   };
 
   // Progress dots: steps 0-4
-  const dots = [0, 1, 2, 3, 4];
+  const dots = [0, 1, 2, 3, 4, 5];
   const dotIndex = dots.indexOf(setupStep);
 
   // Shared pill style
@@ -455,8 +456,49 @@ export function SetupWizardPanel() {
         </div>
       )}
 
-      {/* Step 2: Defense Type */}
+      {/* Step 2: Complexity Level */}
       {setupStep === 2 && (
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>
+            What level is your team?
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.5 }}>
+            This determines how tightly players stack and if they perform advanced positional switching.
+          </div>
+
+          {[
+            { key: 'basic', name: 'Basic (Rec / Middle School)', desc: 'No complex overlapping. Simple W-formations. Players stay in their rotated zones on defense (No switching).' },
+            { key: 'standard', name: 'Standard (JV / Club)', desc: 'Classic 3-man serve receive. Setters hide legally but with spacing. Standard defensive switching (Left plays left, etc).' },
+            { key: 'advanced', name: 'Advanced (Varsity / Pro)', desc: 'Extremely tight pixel-perfect stacking. Aggressive transition routes.' }
+          ].map(lvl => (
+            <button
+              key={lvl.key}
+              onClick={() => useTeamStore.getState().setComplexityLevel(lvl.key as any)}
+              style={{
+                width: '100%', textAlign: 'left', marginBottom: 8,
+                background: useTeamStore.getState().complexityLevel === lvl.key ? '#e8a83e10' : 'var(--bg-card)',
+                border: `2px solid ${useTeamStore.getState().complexityLevel === lvl.key ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 900, color: useTeamStore.getState().complexityLevel === lvl.key ? 'var(--accent)' : 'var(--text)' }}>
+                {lvl.name}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 4, lineHeight: 1.4 }}>
+                {lvl.desc}
+              </div>
+            </button>
+          ))}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button onClick={() => setSetupStep(1)} style={{ flex: 1, background: 'none', border: '1px solid var(--border)', color: 'var(--text-mid)', borderRadius: 9, padding: '9px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Back</button>
+            <button onClick={() => setSetupStep(3)} style={{ flex: 2, background: 'var(--accent)', border: 'none', color: '#000', borderRadius: 9, padding: '9px', fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>Continue</button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Defense Type */}
+      {setupStep === 3 && (
         <div>
           <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>
             What defense do you run?
@@ -525,7 +567,7 @@ export function SetupWizardPanel() {
 
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button
-              onClick={() => setSetupStep(1)}
+              onClick={() => setSetupStep(2)}
               style={{
                 flex: 1, background: 'none', border: '1px solid var(--border)',
                 color: 'var(--text-mid)', borderRadius: 9, padding: '9px',
@@ -538,7 +580,7 @@ export function SetupWizardPanel() {
               onClick={() => {
                 setRotation(1 as Rotation);
                 changeScenario('serve');
-                setSetupStep(3);
+                setSetupStep(4);
                 // Auto-play serve animation for rotation 1
                 setTimeout(() => {
                   usePlaybookStore.getState().setTeamAnimScenario('serve');
@@ -559,7 +601,7 @@ export function SetupWizardPanel() {
       )}
 
       {/* Step 3: Per-Rotation Walkthrough */}
-      {setupStep === 3 && (
+      {setupStep === 4 && (
         <div>
           <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--text)', marginBottom: 2, lineHeight: 1.3 }}>
             Review Each Rotation
@@ -773,7 +815,7 @@ export function SetupWizardPanel() {
             <button
               onClick={() => {
                 stopAnim();
-                setSetupStep(2);
+                setSetupStep(3);
               }}
               style={{
                 flex: 1, background: 'none', border: '1px solid var(--border)',
@@ -786,7 +828,7 @@ export function SetupWizardPanel() {
             <button
               onClick={() => {
                 stopAnim();
-                setSetupStep(4);
+                setSetupStep(5);
               }}
               style={{
                 flex: 2, background: confirmedCount > 0 ? 'var(--accent)' : '#1e3055',
@@ -803,7 +845,7 @@ export function SetupWizardPanel() {
       )}
 
       {/* Step 4: Roster */}
-      {setupStep === 4 && (
+      {setupStep === 5 && (
         <div>
           <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>
             Name your players
@@ -845,7 +887,7 @@ export function SetupWizardPanel() {
               onClick={() => {
                 setRotation(1 as Rotation);
                 changeScenario('serve');
-                setSetupStep(3);
+                setSetupStep(4);
               }}
               style={{
                 flex: 1, background: 'none', border: '1px solid var(--border)',

@@ -58,6 +58,7 @@ export function Court() {
   const teamAnimPlaying = usePlaybookStore(s => s.teamAnimPlaying);
   const teamAnimProg = usePlaybookStore(s => s.teamAnimProg);
   const teamAnimScenario = usePlaybookStore(s => s.teamAnimScenario);
+  const teamAnimPhaseIndex = usePlaybookStore(s => s.teamAnimPhaseIndex);
 
   const teamPositions = useMemo(() => {
     const key = rotKey(teamSystem, teamRotation);
@@ -75,29 +76,32 @@ export function Court() {
   // Get the right play data (editor may have overrides) — skip in team/setup modes for performance
   const play = isTeam ? null : (isEditing ? useEditorStore.getState().getPlay(pid) : resolvePlay(pid));
 
-  // Compute positions + ball
+  // Compute positions + ball + active phase label
   let positions: PositionMap;
   let ball: XY;
   let violatedIds = new Set<PlayerId>();
+  let currentPhaseLabel = '';
 
   if (isTeam) {
     const key = rotKey(teamSystem, teamRotation);
     const rd = rotationDefaults[key];
     
-    // Check if we are in the setup wizard and have a scenario selected
     if (tab === 'setup' && teamAnimScenario && rd) {
       const phases = teamAnimScenario === 'serve' ? rd.servePhases : rd.receivePhases;
       if (phases?.length) {
-        // ALWAYS lerp based on teamAnimProg, whether playing or paused!
         const result = lerp(teamAnimProg, phases);
         positions = result.pos;
         ball = result.ball;
+        
+        // Safely determine which phase label to show based on progress
+        const derivedIdx = phIdxFromProg(teamAnimProg, phases.length);
+        const activeIdx = teamAnimPlaying ? derivedIdx : teamAnimPhaseIndex;
+        currentPhaseLabel = phases[activeIdx]?.label || '';
       } else {
         positions = teamPositions;
         ball = { x: -100, y: -100 };
       }
     } else {
-      // Standard 'My Team' fallback
       positions = teamPositions;
       ball = { x: -100, y: -100 };
     }
@@ -106,6 +110,7 @@ export function Court() {
     const result = lerp(prog, phases);
     positions = result.pos;
     ball = result.ball;
+    currentPhaseLabel = phases[phIdxFromProg(prog, phases.length)]?.label || '';
   } else if (isQuizAnimating) {
     const q = QUIZ[qIdx];
     const fallbackPlay = play || getPlay(pid);
@@ -113,10 +118,12 @@ export function Court() {
     const result = lerp(quizProg, qPlay.phases);
     positions = result.pos;
     ball = result.ball;
+    currentPhaseLabel = qPlay.phases[phIdxFromProg(quizProg, qPlay.phases.length)]?.label || '';
   } else if (play) {
     const phase = play.phases[phIdx] || play.phases[0];
     positions = phase.pos;
     ball = phase.ball;
+    currentPhaseLabel = phase.label || '';
     if (isEditing) {
       violatedIds = new Set(editorViolations.flatMap(v => v.ids));
     }
@@ -125,6 +132,7 @@ export function Court() {
     const fallbackPlay = getPlay(pid);
     positions = fallbackPlay.phases[0].pos;
     ball = fallbackPlay.phases[0].ball;
+    currentPhaseLabel = fallbackPlay.phases[0].label || '';
   }
 
   // Tooltip note
@@ -173,7 +181,6 @@ export function Court() {
     // Get positions depending on mode
     let curPos: PositionMap;
     if (curTab === 'myteam' || curTab === 'setup') {
-      // If team animation is showing (or paused at any phase), use lerped positions for hit-testing
       const pbState = usePlaybookStore.getState();
       if (curTab === 'setup' && pbState.teamAnimScenario) {
         const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
@@ -241,7 +248,6 @@ export function Court() {
         const nx = Math.max(PR, Math.min(CW - PR, pt.x - teamDrag.current.ox));
         const ny = Math.max(NET_Y + PR, Math.min(CH - PR, pt.y - teamDrag.current.oy));
 
-        // If team animation is paused at a phase, update phase position
         const pbState = usePlaybookStore.getState();
         if (!pbState.teamAnimPlaying && (pbState.teamAnimProg > 0 || pbState.teamAnimProg === 0) && curTab === 'setup') {
           const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
@@ -369,6 +375,47 @@ export function Court() {
             />
           );
         })}
+
+        {/* OFFENSIVE PLAY OVERLAY */}
+        {currentPhaseLabel === 'OFFENSIVE PLAY' && (
+          <g style={{ pointerEvents: 'none' }}>
+            <rect 
+              x="0" 
+              y="0" 
+              width={CW} 
+              height={CH} 
+              fill="#0a1428" 
+            />
+            <text 
+              x={CW / 2} 
+              y={CH / 2} 
+              fill="var(--accent)" 
+              fontSize="48" 
+              fontWeight="900" 
+              textAnchor="middle" 
+              alignmentBaseline="middle"
+              letterSpacing="2"
+              style={{ 
+                textShadow: '0px 4px 12px rgba(0,0,0,0.8)',
+                animation: 'pulse 1.5s infinite alternate' 
+              }}
+            >
+              OFFENSIVE PLAY
+            </text>
+            <text 
+              x={CW / 2} 
+              y={(CH / 2) + 40} 
+              fill="#ffffff" 
+              fontSize="16" 
+              fontWeight="700" 
+              textAnchor="middle" 
+              alignmentBaseline="middle"
+              style={{ textShadow: '0px 2px 8px rgba(0,0,0,0.8)' }}
+            >
+              Ball crosses net → Transitioning to base
+            </text>
+          </g>
+        )}
       </svg>
 
       {/* Tooltip */}

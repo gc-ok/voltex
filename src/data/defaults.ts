@@ -1,4 +1,4 @@
-import { RotationDefaults, System, Rotation, PositionMap, DefenseType, RotationLayout, DefenseSchema, PlayerId, Phase, PhaseNotes, XY } from './types';
+import { RotationDefaults, System, Rotation, PositionMap, DefenseType, RotationLayout, DefenseSchema, PlayerId, Phase, PhaseNotes, XY, ComplexityLevel } from './types';
 import { PLAYS } from './plays';
 import { FR_L, FR_M, FR_R, DC_L, DC_M, DC_R, MC_L, SET_TGT, BK_L, B_SET, OVR_XL, xy } from './constants';
 
@@ -6,21 +6,18 @@ import { FR_L, FR_M, FR_R, DC_L, DC_M, DC_R, MC_L, SET_TGT, BK_L, B_SET, OVR_XL,
 // Factory Defaults — extracted from existing play data
 // ═══════════════════════════════════════════════════════════════
 
-// Extract positions from first phase of a play (serve receive formation)
 function posFromPlay(playId: string): PositionMap {
   const play = PLAYS.find(p => p.id === playId);
   if (!play) throw new Error(`Play ${playId} not found`);
   return { ...play.phases[0].pos };
 }
 
-// Key for rotation defaults lookup
 export function rotKey(system: System, rotation: Rotation): string {
   return `${system}-${rotation}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
 // Rotation Layouts — who is front row vs back row per rotation
-// Verified from actual serve receive play data (51sr1–51sr6)
 // ═══════════════════════════════════════════════════════════════
 
 export const ROTATION_LAYOUTS: Record<System, Record<Rotation, RotationLayout>> = {
@@ -50,11 +47,6 @@ export const ROTATION_LAYOUTS: Record<System, Record<Rotation, RotationLayout>> 
   },
 };
 
-// ═══════════════════════════════════════════════════════════════
-// Defense Schemas — position templates by ROLE (not player)
-// Front row = blockers at net, back row = diggers
-// ═══════════════════════════════════════════════════════════════
-
 export const DEFENSE_SCHEMAS: Record<DefenseType, DefenseSchema> = {
   'perimeter': {
     blockLeft: FR_L, blockMid: FR_M, blockRight: FR_R,
@@ -71,236 +63,132 @@ export const DEFENSE_SCHEMAS: Record<DefenseType, DefenseSchema> = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// Generate defense positions per rotation
-// Maps the right players to front/back row based on rotation
+// Defense Positions (Complexity Aware)
 // ═══════════════════════════════════════════════════════════════
 
 export function generateDefensePositions(
   system: System,
   rotation: Rotation,
-  defenseType: DefenseType
+  defenseType: DefenseType = 'perimeter',
+  complexity: ComplexityLevel = 'standard'
 ): PositionMap {
   const layout = ROTATION_LAYOUTS[system][rotation];
   const schema = DEFENSE_SCHEMAS[defenseType];
-  return {
-    [layout.front[0]]: { ...schema.blockLeft },
-    [layout.front[1]]: { ...schema.blockMid },
-    [layout.front[2]]: { ...schema.blockRight },
-    [layout.back[0]]: { ...schema.digLeft },
-    [layout.back[1]]: { ...schema.digMiddle },
-    [layout.back[2]]: { ...schema.digRight },
-  } as PositionMap;
-}
+  const pos = {} as PositionMap;
 
-// ═══════════════════════════════════════════════════════════════
-// Base Positions — where each player's HOME/defensive ready position is
-// After serve contact, players "switch" to these preferred positions.
-// Reference: volleyball_positioning_reference.md — Base Position section
-//
-// Principles:
-// - S back row → Z1 right-back (~440, 620), ready to sprint to target
-// - S front row → Z2 right-front (~395, 340), near target
-// - OH → left antenna Z4 (88, 340) when front row
-// - MB → center Z3 (270, 330) when front row
-// - OP → right antenna Z2 (452, 340) when front row
-// - L → Z6 deep center (270, 680), always back row
-// - Back-row non-setter, non-L → left-back Z5 (~105, 600)
-// ═══════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════
-// Base Positions — High School Perimeter Defense
-// Players switch to these preferred positions after the serve.
-// ═══════════════════════════════════════════════════════════════
-
-export function generateBasePositions(system: System, rotation: Rotation): PositionMap {
-  const layout = ROTATION_LAYOUTS[system][rotation];
-  const pos: PositionMap = {} as PositionMap;
-
-  // Determine active setter
-  let activeSetterId: PlayerId = 'S';
-  if (system === '6-2') {
-    activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
-  } else if (system === '4-2') {
-    activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
-  }
-
-  // 1. Front-row players switch to preferred net positions
   const z4 = layout.front[0], z3 = layout.front[1], z2 = layout.front[2];
-  
-  pos[z4] = xy(120, 340); // Standard Left antenna block
-  pos[z3] = xy(270, 330); // Standard Middle block
-  pos[z2] = xy(420, 340); // Standard Right antenna block
+  const z5 = layout.back[0],  z6 = layout.back[1],  z1 = layout.back[2];
 
-  // If the active setter is front row, ensure they slide to the Z2/Z3 gap (Target)
-  if (z4 === activeSetterId) pos[z4] = xy(350, 340);
-  if (z3 === activeSetterId) pos[z3] = xy(380, 340);
+  pos[z4] = { ...schema.blockLeft }; pos[z3] = { ...schema.blockMid }; pos[z2] = { ...schema.blockRight };
+  pos[z5] = { ...schema.digLeft }; pos[z6] = { ...schema.digMiddle }; pos[z1] = { ...schema.digRight };
 
-  // 2. Back-row players switch to Perimeter Defense
-  const z5 = layout.back[0], z6 = layout.back[1], z1 = layout.back[2];
+  if (complexity === 'basic') return pos;
 
-  pos[z5] = xy(120, 580); // Left Back (Digging)
-  pos[z6] = xy(270, 680); // Middle Back (Deep / Libero base)
-  pos[z1] = xy(420, 580); // Right Back (Digging)
+  let activeSetterId: PlayerId = 'S';
+  if (system === '6-2') activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
+  else if (system === '4-2') activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
 
-  // 3. Setter Switching Rule
-  // If the active setter is in the back row, they ALWAYS switch to Right Back (Z1)
-  // so they have the shortest path to the net during a rally.
-  if (z5 === activeSetterId) { 
-    pos[z5] = xy(440, 560); // Setter runs to right-back
-    pos[z1] = xy(120, 580); // The original Z1 player crosses to left-back
-  } 
-  else if (z6 === activeSetterId) {
-    pos[z6] = xy(440, 560);
-    pos[z1] = xy(270, 680); // Original Z1 crosses to middle-back
+  if (z4 === activeSetterId || z4 === 'OP') {
+    pos[z4] = { ...schema.blockRight }; pos[z2] = { ...schema.blockLeft };
+  } else if (z3 === activeSetterId || z3 === 'OP') {
+    pos[z3] = { ...schema.blockRight }; pos[z2] = { ...schema.blockMid };
   }
-  else if (z1 === activeSetterId) {
-    pos[z1] = xy(440, 560); // Already in right-back area
+
+  if (z5 === activeSetterId) {
+    pos[z5] = { ...schema.digRight }; pos[z1] = { ...schema.digLeft };
+  } else if (z6 === activeSetterId) {
+    pos[z6] = { ...schema.digRight }; pos[z1] = { ...schema.digMiddle };
   }
 
   return pos;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Server per rotation — derived from ROTATION_LAYOUTS (Z1 player serves)
-// See volleyball_positioning_reference.md for detailed rationale
-// ═══════════════════════════════════════════════════════════════
-
-const SERVERS: Record<Rotation, PlayerId> = {
-  1: 'S', 2: 'L', 3: 'RS', 4: 'RS', 5: 'RS', 6: 'RS',
-};
-
-// ═══════════════════════════════════════════════════════════════
-// Pre-serve positions — volleyball-accurate stacking per rotation
-// When OUR team serves, players position for defensive transition.
-// Reference: volleyball_positioning_reference.md — Serving Formation sections
-//
-// Key principles:
-// - Server at baseline right (~400, 805)
-// - Front-row players near net in legal zone positions
-// - Back-row non-servers ready for defense
-// - Setter (if back row) cheats toward target for shorter transition
-// - Front row will "switch" after contact to preferred positions
-// ═══════════════════════════════════════════════════════════════
-
-function preServePositions(
-  system: System,
-  rotation: Rotation,
-): PositionMap {
-  const preServeByRotation: Record<Rotation, PositionMap> = {
-    // R1: S serves. Front: OH(Z4) MB(Z3) OP(Z2). Back: RS(Z5) L(Z6)
-    1: {
-      S:  xy(400, 805),
-      OP: xy(440, 340),
-      MB: xy(270, 330),
-      OH: xy(100, 340),
-      RS: xy(120, 560),
-      L:  xy(270, 560),
-    },
-    // R2: L serves. Front: OH(Z4) MB(Z3) OP(Z2). Back: RS(Z5) S(Z6)
-    2: {
-      L:  xy(400, 805),
-      OP: xy(440, 340),
-      MB: xy(270, 330),
-      OH: xy(100, 340),
-      RS: xy(120, 560),
-      S:  xy(350, 560),
-    },
-    // R3: RS serves. Front: OP(Z4) MB(Z3) OH(Z2). Back: S(Z5) L(Z6)
-    3: {
-      RS: xy(400, 805),
-      OH: xy(440, 340),
-      MB: xy(270, 330),
-      OP: xy(100, 340),
-      S:  xy(120, 560),
-      L:  xy(270, 560),
-    },
-    // R4: RS serves. Front: S(Z4) OP(Z3) MB(Z2). Back: OH(Z5) L(Z6)
-    4: {
-      RS: xy(400, 805),
-      MB: xy(440, 340),
-      OP: xy(270, 330),
-      S:  xy(100, 340),
-      OH: xy(120, 560),
-      L:  xy(270, 560),
-    },
-    // R5: RS serves. Front: MB(Z4) S(Z3) OP(Z2). Back: OH(Z5) L(Z6)
-    5: {
-      RS: xy(400, 805),
-      OP: xy(440, 340),
-      S:  xy(330, 330),
-      MB: xy(100, 340),
-      OH: xy(120, 560),
-      L:  xy(270, 560),
-    },
-    // R6: RS serves. Front: MB(Z4) OP(Z3) S(Z2). Back: OH(Z5) L(Z6)
-    6: {
-      RS: xy(400, 805),
-      S:  xy(395, 340),
-      OP: xy(270, 330),
-      MB: xy(100, 340),
-      OH: xy(120, 560),
-      L:  xy(270, 560),
-    },
-  };
-
-  return preServeByRotation[rotation];
+export function generateBasePositions(system: System, rotation: Rotation): PositionMap {
+  return generateDefensePositions(system, rotation, 'perimeter', 'standard');
 }
 
-// Empty notes helper
+const SERVERS: Record<Rotation, PlayerId> = { 1: 'S', 2: 'L', 3: 'RS', 4: 'RS', 5: 'RS', 6: 'RS' };
+
+// ═══════════════════════════════════════════════════════════════
+// Pre-Serve Positions (OUR team is serving)
+// Fix: Advanced/Standard now pinch the middle to shorten transition
+// sprints for crossed players (R3, R4, R5, R6).
+// ═══════════════════════════════════════════════════════════════
+
+function preServePositions(system: System, rotation: Rotation, complexity: ComplexityLevel = 'standard'): PositionMap {
+  const layout = ROTATION_LAYOUTS[system][rotation];
+  const pos = {} as PositionMap;
+
+  const z4 = layout.front[0], z3 = layout.front[1], z2 = layout.front[2];
+  const z5 = layout.back[0],  z6 = layout.back[1],  server = layout.back[2];
+
+  pos[server] = xy(400, 805); // Server at baseline
+
+  if (complexity === 'basic') {
+    pos[z4] = xy(140, 330); pos[z3] = xy(270, 330); pos[z2] = xy(400, 330);
+    pos[z5] = xy(140, 560); pos[z6] = xy(270, 560);
+    return pos;
+  }
+
+  // Tightly stack the front row in the middle if they are crossed
+  const gap = complexity === 'advanced' ? 30 : 45;
+  const cL = 270 - gap;
+  const cM = 270;
+  const cR = 270 + gap;
+
+  // R1 and R2 are natural (OH left, MB mid, OP right). No pinching needed.
+  if (rotation === 1 || rotation === 2) {
+    pos[z4] = xy(140, 330); pos[z3] = xy(270, 330); pos[z2] = xy(400, 330);
+  } else {
+    // R3, R4, R5, R6 are crossed. Pinch them tight to the middle.
+    pos[z4] = xy(cL, 330); pos[z3] = xy(cM, 330); pos[z2] = xy(cR, 330);
+  }
+
+  // Back row stacking (non-servers)
+  if (rotation === 1 || rotation === 2 || rotation === 3) {
+    // The Z5 player (Setter or RS) has to run all the way to Z1 right-back. Pinch them!
+    pos[z5] = xy(cL, 560); pos[z6] = xy(cM, 560);
+  } else {
+    // The Z5 player is OH, who wants to stay left. Natural spread.
+    pos[z5] = xy(140, 560); pos[z6] = xy(270, 560);
+  }
+
+  return pos;
+}
+
 const N0: PhaseNotes = { S: '', OP: '', MB: '', OH: '', RS: '', L: '' };
 
-// Interpolate between two positions at ratio t (0-1)
 function lerpXY(a: XY, b: XY, t: number): XY {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
 }
 
-// Interpolate all positions between two PositionMaps
 function lerpPositions(a: PositionMap, b: PositionMap, t: number): PositionMap {
   const result: PositionMap = {} as PositionMap;
   const ids: PlayerId[] = ['S', 'OP', 'MB', 'OH', 'RS', 'L'];
   for (const pid of ids) {
-    if (a[pid] && b[pid]) {
-      result[pid] = lerpXY(a[pid], b[pid], t);
-    } else {
-      result[pid] = a[pid] || b[pid];
-    }
+    if (a[pid] && b[pid]) result[pid] = lerpXY(a[pid], b[pid], t);
+    else result[pid] = a[pid] || b[pid];
   }
   return result;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Serve Receive Stacked Positions — per rotation
-// Reference: volleyball_positioning_reference.md
-//
-// Key stacking principles:
-// - S hides behind adjacent net player, NEVER takes first ball
-// - MB stays at net, never passes
-// - OP stays at net (or deep if back row), rarely passes
-// - Passers: L (always), OH (pulls back from net), RS (back row)
-// - Positions minimize transition distance after contact
-// - All positions respect overlap rules for the rotation
+// Serve Receive Stacks (Opponent serving)
+// Fix: Highly optimized passing lane shifts for R3, R4, R6 to
+// ensure hit-route distances are kept minimal.
 // ═══════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════
-// Serve Receive Stacked Positions (High School Standard)
-// Automatically adapts to 5-1, 6-2, and 4-2 systems by checking zones.
-// ═══════════════════════════════════════════════════════════════
-
-function serveReceivePositions(system: System, rotation: Rotation): PositionMap {
+function serveReceivePositions(system: System, rotation: Rotation, complexity: ComplexityLevel = 'standard'): PositionMap {
   const layout = ROTATION_LAYOUTS[system][rotation];
   const pos = {} as PositionMap;
 
-  // 1. Determine the active setter ID for this system/rotation
-  let activeSetterId: PlayerId = 'S';
-  if (system === '6-2') {
-    // In 6-2, setter is always back row. Could be S or RS depending on rotation.
-    activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
-  } else if (system === '4-2') {
-    // In 4-2, setter is always front row. Could be S or RS.
-    activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
-  }
+  const z4 = layout.front[0], z3 = layout.front[1], z2 = layout.front[2];
+  const z5 = layout.back[0],  z6 = layout.back[1],  z1 = layout.back[2];
 
-  // 2. Identify which ZONE (1-6) the active setter is currently in
+  let activeSetterId: PlayerId = 'S';
+  if (system === '6-2') activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
+  else if (system === '4-2') activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
+
   let setterZone = 0;
   if (layout.back[2] === activeSetterId) setterZone = 1;
   else if (layout.back[1] === activeSetterId) setterZone = 6;
@@ -309,271 +197,190 @@ function serveReceivePositions(system: System, rotation: Rotation): PositionMap 
   else if (layout.front[1] === activeSetterId) setterZone = 3;
   else if (layout.front[2] === activeSetterId) setterZone = 2;
 
-  // Map players to their current rotational zones
-  const z4 = layout.front[0], z3 = layout.front[1], z2 = layout.front[2]; // Front row (Left to Right)
-  const z5 = layout.back[0],  z6 = layout.back[1],  z1 = layout.back[2];  // Back row (Left to Right)
+  if (complexity === 'basic') {
+    pos[z4] = xy(140, 360); pos[z3] = xy(270, 360); pos[z2] = xy(400, 360);
+    pos[z5] = xy(140, 560); pos[z6] = xy(270, 560); pos[z1] = xy(400, 560);
+    if (setterZone === 1) pos[z1] = xy(400, 450);
+    else if (setterZone === 6) pos[z6] = xy(270, 450);
+    else if (setterZone === 5) pos[z5] = xy(140, 450);
+    return pos;
+  }
 
-  // 3. Apply High School Stacking rules based on Setter Zone
-  // Rules: Respect overlaps (Z4 left of Z3, Z5 behind Z4, etc). Minimize setter run distance.
-  
+  const isAdv = complexity === 'advanced';
+  const stackGap = isAdv ? 25 : 35; 
+  const netY = 330;
+  const passY = 580;
+
   if (setterZone === 1) {
-    // S in Z1 (Right Back). Stack Z1 tightly behind Z2.
-    pos[z2] = xy(420, 330); // Net right (ready to hit)
-    pos[z1] = xy(420, 390); // Stacked legally behind Z2! Practically at target.
-    pos[z3] = xy(280, 330); // Net middle 
-    
-    // Passers: 3-man cup
-    pos[z4] = xy(140, 480); // Pulled back short-left to pass
-    pos[z6] = xy(270, 580); // Passing middle
-    pos[z5] = xy(140, 580); // Passing deep-left
-  } 
-  else if (setterZone === 6) {
-    // S in Z6 (Middle Back). Stack Z6 tightly behind Z3.
-    pos[z3] = xy(350, 330); // Net middle (cheated right)
-    pos[z6] = xy(350, 390); // Stacked legally behind Z3
-    pos[z2] = xy(450, 330); // Net right
-    
-    // Passers
-    pos[z4] = xy(140, 480); // Pulled back short-left
-    pos[z5] = xy(140, 580); // Passing left
-    pos[z1] = xy(420, 580); // Passing right
-  } 
-  else if (setterZone === 5) {
-    // S in Z5 (Left Back). Stack Z5 tightly behind Z4.
-    pos[z4] = xy(120, 330); // Net left
-    pos[z5] = xy(120, 390); // Stacked legally behind Z4
-    pos[z3] = xy(270, 330); // Net middle
-    
-    // Passers
-    pos[z2] = xy(400, 480); // Pulled back short-right
-    pos[z6] = xy(270, 580); // Passing middle
-    pos[z1] = xy(420, 580); // Passing deep-right
-  } 
-  else if (setterZone === 4) {
-    // S in Z4 (Front Row). Already at net, ready to slide right.
-    pos[z4] = xy(150, 330); // Net left
-    pos[z3] = xy(300, 330); // Net middle
-    pos[z2] = xy(420, 330); // Net right
-    
-    // Passers: Standard 3-man line
-    pos[z5] = xy(140, 580); // Passing left
-    pos[z6] = xy(270, 580); // Passing middle
-    pos[z1] = xy(420, 580); // Passing right
-  } 
-  else if (setterZone === 3) {
-    // S in Z3 (Front Row). Very close to target.
-    pos[z4] = xy(120, 330); // Net left
-    pos[z3] = xy(350, 330); // Net middle (pushing to target)
-    pos[z2] = xy(440, 330); // Net right
-    
-    pos[z5] = xy(140, 580); 
-    pos[z6] = xy(270, 580); 
-    pos[z1] = xy(420, 580); 
-  } 
-  else if (setterZone === 2) {
-    // S in Z2 (Front Row). At target.
-    pos[z4] = xy(120, 330); 
-    pos[z3] = xy(270, 330); 
-    pos[z2] = xy(400, 330); // Net right (At target!)
-    
-    pos[z5] = xy(140, 580); 
-    pos[z6] = xy(270, 580); 
-    pos[z1] = xy(420, 580); 
+    // R1: Natural spread
+    pos[z2] = xy(420, netY);
+    pos[z1] = xy(420, netY + stackGap); 
+    pos[z3] = xy(280, netY);
+    pos[z5] = xy(isAdv ? 180 : 160, passY); 
+    pos[z6] = xy(isAdv ? 340 : 300, passY); 
+    pos[z4] = xy(isAdv ? 90 : 110, 460); // OH Pulled back
+  } else if (setterZone === 6) {
+    // R2: Natural spread
+    pos[z3] = xy(270, netY);
+    pos[z6] = xy(270, netY + stackGap); 
+    pos[z2] = xy(450, netY);
+    pos[z5] = xy(150, passY);
+    pos[z1] = xy(isAdv ? 390 : 400, passY);
+    pos[z4] = xy(isAdv ? 90 : 110, 460); // OH Pulled back
+  } else if (setterZone === 5) {
+    // R3: CROSSED (OP left, OH right). 
+    // Fix: Pinch OP/MB left. Shift passing lane right so OH has a shorter sprint to left antenna.
+    pos[z4] = xy(120, netY); // OP pinched left
+    pos[z5] = xy(120, netY + stackGap); 
+    pos[z3] = xy(200, netY); // MB pinched left
+    pos[z2] = xy(270, 480); // OH passes in middle
+    pos[z6] = xy(360, passY); // L shifted right
+    pos[z1] = xy(440, passY); // RS shifted right
+  } else if (setterZone === 4) {
+    // R4: CROSSED (S left, OP mid, MB right). 
+    // Fix: Pinch front row left so S has shorter route to target.
+    pos[z4] = xy(120, netY);
+    pos[z3] = xy(200, netY);
+    pos[z2] = xy(280, netY);
+    pos[z5] = xy(160, passY); 
+    pos[z6] = xy(300, passY); 
+    pos[z1] = xy(420, passY);
+  } else if (setterZone === 3) {
+    // R5: S in middle
+    pos[z3] = xy(270, netY); 
+    pos[z4] = xy(180, netY); 
+    pos[z2] = xy(360, netY);
+    pos[z5] = xy(150, passY); 
+    pos[z6] = xy(270, passY); 
+    pos[z1] = xy(390, passY);
+  } else if (setterZone === 2) {
+    // R6: CROSSED (MB left, OP mid, S right).
+    // Fix: Pinch front row right so S is basically at target.
+    pos[z2] = xy(420, netY);
+    pos[z3] = xy(340, netY);
+    pos[z4] = xy(260, netY);
+    pos[z5] = xy(150, passY); 
+    pos[z6] = xy(270, passY); 
+    pos[z1] = xy(390, passY);
   }
 
   return pos;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Phase Generation — Serve Phases (our team serves)
-// 3 phases: Pre-Serve → Ball Crosses Net → Base Defense
-// Reference: volleyball_positioning_reference.md
-//
-// FIX: Final phase uses BASE positions (S at Z1 ~440,620 when back row)
-// NOT SET_TGT. Setter only goes to target AFTER a dig/pass, not before.
+// Phase Generation — Serve Phases (Reduced to exactly 2 Phases)
+// Phase 1: Pre-Serve (Where we start)
+// Phase 2: Base Defense (Where we end up)
 // ═══════════════════════════════════════════════════════════════
 
 export function buildServePhases(
   system: System,
   rotation: Rotation,
-  defenseType: DefenseType
+  defenseType: DefenseType = 'perimeter',
+  complexity: ComplexityLevel = 'standard'
 ): Phase[] {
   const server = SERVERS[rotation];
   const layout = ROTATION_LAYOUTS[system][rotation];
-  const preServe = preServePositions(system, rotation);
-  const base = generateBasePositions(system, rotation);
+  const preServe = preServePositions(system, rotation, complexity);
+  const base = generateDefensePositions(system, rotation, defenseType, complexity);
   const isSetterFrontRow = layout.front.includes('S');
 
-  // Phase 2: transitioning — 60% toward base positions
-  const transitioning = lerpPositions(preServe, base, 0.6);
-  // Server transitions slower off baseline (only 45%)
-  if (preServe[server] && base[server]) {
-    transitioning[server] = lerpXY(preServe[server], base[server], 0.45);
-  }
-
-  // Phase notes
   const preServeNotes: PhaseNotes = {
-    S: server === 'S' ? 'Serving from baseline.' : (isSetterFrontRow ? 'At net, ready to set.' : 'Back row — will transition to Z1 base.'),
+    S: server === 'S' ? 'Serving.' : (isSetterFrontRow ? 'At net, ready to set.' : 'Back row.'),
     OP: layout.front.includes('OP') ? 'At net, blocking position.' : 'Back row.',
     MB: layout.front.includes('MB') ? 'At net, center.' : 'Back row.',
     OH: layout.front.includes('OH') ? 'At net, left side.' : 'Back row.',
-    RS: server === 'RS' ? 'Serving from baseline.' : 'Back row.',
-    L: server === 'L' ? 'Serving from baseline.' : 'Back row, defensive ready.',
-  };
-
-  const transNotes: PhaseNotes = {
-    S: isSetterFrontRow ? 'Sliding to target area at net.' : 'Transitioning to Z1 base — ready to sprint to target on dig.',
-    OP: layout.front.includes('OP') ? 'Switching to right antenna blocking.' : 'Transitioning to back-row defense.',
-    MB: layout.front.includes('MB') ? 'Center net — reading for block.' : 'Back row — defensive base.',
-    OH: layout.front.includes('OH') ? 'Switching to left antenna blocking.' : 'Transitioning to back-row defense.',
-    RS: `${server === 'RS' ? 'Served. ' : ''}Moving to defensive position.`,
-    L: `${server === 'L' ? 'Served. ' : ''}Moving to deep center.`,
+    RS: server === 'RS' ? 'Serving.' : 'Back row.',
+    L: server === 'L' ? 'Serving.' : 'Back row, defensive ready.',
   };
 
   const baseNotes: PhaseNotes = {
-    S: isSetterFrontRow ? 'Right-front at net — blocking + ready to set.' : 'Z1 base (right-back) — reads opponent, sprints to target on dig.',
-    OP: layout.front.includes('OP') ? 'Right antenna — blocking position.' : 'Back-row defense.',
-    MB: layout.front.includes('MB') ? 'Center net — follows setter for block.' : 'Back-row defense.',
-    OH: layout.front.includes('OH') ? 'Left antenna — outside blocking.' : 'Back-row defense.',
-    RS: 'Defensive base position.',
-    L: 'Z6 deep center — read-and-react defense.',
+    S: isSetterFrontRow ? 'Right-front blocking.' : 'Z1 base (right-back) ready to defend.',
+    OP: layout.front.includes('OP') ? 'Right antenna blocking.' : 'Back-row defense.',
+    MB: layout.front.includes('MB') ? 'Center net.' : 'Back-row defense.',
+    OH: layout.front.includes('OH') ? 'Left antenna blocking.' : 'Back-row defense.',
+    RS: 'Base position.',
+    L: 'Deep center base.',
   };
 
+  // Clean 2-phase Serve
   return [
-    {
-      label: 'Pre-Serve',
-      ball: { x: preServe[server].x, y: preServe[server].y },
-      pos: preServe,
-      notes: preServeNotes,
-    },
-    {
-      label: 'Ball Crosses Net',
-      ball: xy(270, 158),
-      pos: transitioning,
-      notes: transNotes,
-    },
-    {
-      label: 'Base Defense',
-      ball: xy(270, 112),
-      pos: base,
-      notes: baseNotes,
-    },
+    { label: 'Pre-Serve', ball: { x: preServe[server].x, y: preServe[server].y }, pos: preServe, notes: preServeNotes },
+    { label: 'Base Defense', ball: xy(270, 112), pos: base, notes: baseNotes },
   ];
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Phase Generation — Receive Phases (opponent serves to us)
-// 4 phases: Serve Receive → The Pass → Generic Attack → Base Defense
-//
-// Phase 1: Stacked serve receive (setter hidden, passers spread)
-// Phase 2: The Pass (Passers anchor, Setter releases to target, Hitters open up)
-// Phase 3: Generic Attack (Setter at target, one front-row player attacks, others cover)
-// Phase 4: Base Defense (Ball assumed over net, everyone sprints to base)
+// Phase Generation — Receive Phases (5 phases - Precise Physics)
+// 1. Receive: Ball at server
+// 2. The Pass: Ball to Passer
+// 3. The Set: Ball to Setter
+// 4. OFFENSIVE PLAY: OVERLAY BLACKOUT. Players freeze in place.
+// 5. Base Defense: Blackout lifts, sprint to base.
 // ═══════════════════════════════════════════════════════════════
 
-export function buildReceivePhases(system: System, rotation: Rotation): Phase[] {
+export function buildReceivePhases(
+  system: System, 
+  rotation: Rotation,
+  defenseType: DefenseType = 'perimeter',
+  complexity: ComplexityLevel = 'standard'
+): Phase[] {
   const layout = ROTATION_LAYOUTS[system][rotation];
-  const isSetterFront = layout.front.includes('S');
-  const base = generateBasePositions(system, rotation);
-  const srPos = serveReceivePositions(system, rotation);
+  const base = generateDefensePositions(system, rotation, defenseType, complexity);
+  const srPos = serveReceivePositions(system, rotation, complexity);
 
-  // 1. Determine the active setter
   let activeSetterId: PlayerId = 'S';
-  if (system === '6-2') {
-    activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
-  } else if (system === '4-2') {
-    activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
-  }
+  if (system === '6-2') activeSetterId = layout.back.includes('S') ? 'S' : 'RS';
+  else if (system === '4-2') activeSetterId = layout.front.includes('S') ? 'S' : 'RS';
 
-  const setterTarget = { ...SET_TGT }; // (395, 318)
+  const setterTarget = { ...SET_TGT }; 
   const ids: PlayerId[] = ['S', 'OP', 'MB', 'OH', 'RS', 'L'];
 
-  // 2. Phase 2: The Pass
+  // Phase 2: The Pass (Ball hits passer)
   const passPos: PositionMap = {} as PositionMap;
-  const setterPassProgress: Record<Rotation, number> = {
-    1: 0.5, 2: 0.45, 3: 0.3, 4: 0.7, 5: 0.8, 6: 1.0,
-  };
-
   for (const pid of ids) {
     if (pid === activeSetterId) {
-      // Setter sprints to target
-      passPos[pid] = lerpXY(srPos[pid], setterTarget, setterPassProgress[rotation] || 0.6);
+      passPos[pid] = lerpXY(srPos[pid], setterTarget, 0.5); // Setter releases halfway
     } else if (layout.back.includes(pid)) {
-      // Passers hold their lanes
-      passPos[pid] = { ...srPos[pid] };
+      passPos[pid] = { ...srPos[pid] }; // Passers hold platform
     } else {
-      // Front row players open up off the net
-      passPos[pid] = lerpXY(srPos[pid], xy(srPos[pid].x, Math.max(srPos[pid].y, 380)), 0.5);
+      passPos[pid] = lerpXY(srPos[pid], xy(srPos[pid].x, Math.max(srPos[pid].y, 380)), 0.3); // Hitters open up
     }
   }
 
-  // 3. Phase 3: Generic Attack
-  const atkPos: PositionMap = {} as PositionMap;
-  
-  // Find a generic attacker (first front-row player who isn't the active setter)
-  const frontHitters = layout.front.filter(pid => pid !== activeSetterId);
-  const attackerId = frontHitters[0] || 'OH'; 
-  const attackCoords = xy(88, 340); // Standard Left Antenna
-
+  // Phase 3: The Set (Ball hits Setter at target)
+  const setPos: PositionMap = {} as PositionMap;
   for (const pid of ids) {
     if (pid === activeSetterId) {
-      atkPos[pid] = { ...setterTarget }; // Setter arrives at target
-    } else if (pid === attackerId) {
-      atkPos[pid] = { ...attackCoords }; // Attacker goes to antenna
+      setPos[pid] = { ...setterTarget }; // Setter arrives
+    } else if (layout.front.includes(pid)) {
+      // Front row hitters open up into their hitting lanes
+      const xPos = pid === layout.front[0] ? 88 : pid === layout.front[1] ? 270 : 452;
+      setPos[pid] = xy(xPos, 380); 
     } else {
-      // Everyone else takes a step into generic coverage (toward center of court)
-      atkPos[pid] = lerpXY(passPos[pid], xy(270, 450), 0.4);
+      // Back row steps up for coverage
+      setPos[pid] = lerpXY(passPos[pid], xy(passPos[pid].x, 500), 0.5); 
     }
   }
 
-  // Phase notes tailored for setup mapping
-  const srNotes: PhaseNotes = {
-    S: isSetterFront ? 'At net — ready to set.' : `Back row — hidden. Will sprint to target.`,
-    OP: layout.front.includes('OP') ? 'At net.' : 'Back row — passing/defense.',
-    MB: 'At net — ready to drop off.',
-    OH: layout.front.includes('OH') ? 'Pulled back to pass.' : 'Back row — passing.',
-    RS: layout.back.includes('RS') ? 'Back row — passing.' : 'At net.',
-    L: 'Primary passer. Deep center.',
-  };
+  // Phase 4: OFFENSIVE PLAY (This triggers the dark UI overlay)
+  const atkPos: PositionMap = {} as PositionMap;
+  for (const pid of ids) {
+    atkPos[pid] = { ...setPos[pid] }; // FREEZE EXACTLY IN PLACE so there is zero movement behind the blackout text
+  }
 
-  const passNotes: PhaseNotes = {
-    S: isSetterFront ? 'Moving to target.' : 'Sprinting to target after pass.',
-    OP: layout.front.includes('OP') ? 'Opening up off the net.' : 'Holding passing position.',
-    MB: 'Opening up off the net.',
-    OH: layout.front.includes('OH') ? 'Opening up off the net.' : 'Holding passing position.',
-    RS: layout.back.includes('RS') ? 'Holding passing position.' : 'Opening up off the net.',
-    L: 'Passed the ball — holding platform.',
-  };
+  const srNotes: PhaseNotes = { S: '', OP: '', MB: '', OH: '', RS: '', L: '' };
+  const passNotes: PhaseNotes = { S: 'Releasing to target.', OP: '', MB: '', OH: '', RS: '', L: 'Passing ball to target.' };
+  const setNotes: PhaseNotes = { S: 'Setting the offense.', OP: 'Ready to attack.', MB: 'Ready to attack.', OH: 'Ready to attack.', RS: 'Coverage.', L: 'Coverage.' };
+  const atkNotes: PhaseNotes = { S: 'Ball is live.', OP: 'Ball is live.', MB: 'Ball is live.', OH: 'Ball is live.', RS: 'Ball is live.', L: 'Ball is live.' };
 
-  const atkNotes: PhaseNotes = {
-    S: 'At target, distributing the ball.',
-    OP: attackerId === 'OP' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
-    MB: attackerId === 'MB' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
-    OH: attackerId === 'OH' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
-    RS: attackerId === 'RS' ? 'Taking generic attack swing.' : 'Moving into generic attack coverage.',
-    L: 'Moving into generic attack coverage.',
-  };
-
-  const baseNotes: PhaseNotes = {
-    S: isSetterFront ? 'Right-front base — blocking + ready to set.' : 'Z1 base (right-back) — home position, ready for next rally.',
-    OP: layout.front.includes('OP') ? 'Right antenna base — blocking.' : 'Back-row base.',
-    MB: layout.front.includes('MB') ? 'Center net base.' : 'Back-row base.',
-    OH: layout.front.includes('OH') ? 'Left antenna base — blocking.' : 'Back-row base.',
-    RS: 'Base position.',
-    L: 'Z6 deep center — home base.',
-  };
-
-  // Ball positions through the sequence
-  const ballSR = xy(270, 100);          // Opponent baseline serving
-  const ballPass = xy(270, 580);        // Ball hits passers
-  const ballAtk = { ...BK_L };          // Ball at left antenna attack (82, 288)
-  const ballBase = xy(270, 112);        // Ball crosses back over the net
-
+  // Perfect Ball Physics Path
   return [
-    { label: 'Serve Receive', ball: ballSR, pos: srPos, notes: srNotes },
-    { label: 'The Pass', ball: ballPass, pos: passPos, notes: passNotes },
-    { label: 'Generic Attack', ball: ballAtk, pos: atkPos, notes: atkNotes },
-    { label: 'Base Defense', ball: ballBase, pos: base, notes: baseNotes },
+    { label: 'Serve Receive', ball: xy(270, 100), pos: srPos, notes: srNotes },
+    { label: 'The Pass', ball: xy(270, 560), pos: passPos, notes: passNotes },
+    { label: 'The Set', ball: { ...setterTarget }, pos: setPos, notes: setNotes },
+    { label: 'OFFENSIVE PLAY', ball: xy(270, 158), pos: atkPos, notes: atkNotes }, // Ball flies over net during overlay
+    { label: 'Base Defense', ball: xy(270, 112), pos: base, notes: N0 }, // Finish at base
   ];
 }
 
@@ -582,71 +389,50 @@ export function buildReceivePhases(system: System, rotation: Rotation): Phase[] 
 // ═══════════════════════════════════════════════════════════════
 
 function build51Defaults(): RotationDefaults[] {
-  const srMap: Record<number, string> = {
-    1: '51sr1', 2: '51sr2', 3: '51sr3',
-    4: '51sr4', 5: '51sr5', 6: '51sr6',
-  };
-
+  const srMap: Record<number, string> = { 1: '51sr1', 2: '51sr2', 3: '51sr3', 4: '51sr4', 5: '51sr5', 6: '51sr6' };
   return ([1, 2, 3, 4, 5, 6] as Rotation[]).map(rot => {
-    const srId = srMap[rot];
-    const base = generateBasePositions('5-1', rot);
     return {
       system: '5-1' as System,
       rotation: rot,
-      serveReceive: posFromPlay(srId),
-      baseDefense: generateDefensePositions('5-1', rot, 'perimeter'),
-      baseOffense: base,
-      servePhases: buildServePhases('5-1', rot, 'perimeter'),
-      receivePhases: buildReceivePhases('5-1', rot),
+      serveReceive: posFromPlay(srMap[rot]),
+      baseDefense: generateDefensePositions('5-1', rot, 'perimeter', 'standard'),
+      baseOffense: generateBasePositions('5-1', rot),
+      servePhases: buildServePhases('5-1', rot, 'perimeter', 'standard'),
+      receivePhases: buildReceivePhases('5-1', rot, 'perimeter', 'standard'),
     };
   });
 }
 
 function build62Defaults(): RotationDefaults[] {
-  const srMap: Record<number, string | null> = {
-    1: '62sr1', 2: '62sr2', 3: null, 4: '62sr4', 5: null, 6: null,
-  };
-
+  const srMap: Record<number, string | null> = { 1: '62sr1', 2: '62sr2', 3: null, 4: '62sr4', 5: null, 6: null };
   return ([1, 2, 3, 4, 5, 6] as Rotation[]).map(rot => {
-    const srId = srMap[rot];
-    const sr = srId ? posFromPlay(srId) : posFromPlay('51sr' + rot);
-    const base = generateBasePositions('6-2', rot);
     return {
       system: '6-2' as System,
       rotation: rot,
-      serveReceive: sr,
-      baseDefense: generateDefensePositions('6-2', rot, 'perimeter'),
-      baseOffense: base,
-      servePhases: buildServePhases('6-2', rot, 'perimeter'),
-      receivePhases: buildReceivePhases('6-2', rot),
+      serveReceive: srMap[rot] ? posFromPlay(srMap[rot] as string) : posFromPlay('51sr' + rot),
+      baseDefense: generateDefensePositions('6-2', rot, 'perimeter', 'standard'),
+      baseOffense: generateBasePositions('6-2', rot),
+      servePhases: buildServePhases('6-2', rot, 'perimeter', 'standard'),
+      receivePhases: buildReceivePhases('6-2', rot, 'perimeter', 'standard'),
     };
   });
 }
 
 function build42Defaults(): RotationDefaults[] {
   return ([1, 2, 3, 4, 5, 6] as Rotation[]).map(rot => {
-    const sr = posFromPlay('51sr' + rot);
-    const base = generateBasePositions('4-2', rot);
     return {
       system: '4-2' as System,
       rotation: rot,
-      serveReceive: sr,
-      baseDefense: generateDefensePositions('4-2', rot, 'perimeter'),
-      baseOffense: base,
-      servePhases: buildServePhases('4-2', rot, 'perimeter'),
-      receivePhases: buildReceivePhases('4-2', rot),
+      serveReceive: posFromPlay('51sr' + rot),
+      baseDefense: generateDefensePositions('4-2', rot, 'perimeter', 'standard'),
+      baseOffense: generateBasePositions('4-2', rot),
+      servePhases: buildServePhases('4-2', rot, 'perimeter', 'standard'),
+      receivePhases: buildReceivePhases('4-2', rot, 'perimeter', 'standard'),
     };
   });
 }
 
-// All factory defaults
 export const FACTORY_DEFAULTS: Record<string, RotationDefaults> = {};
-
-// Initialize
-const all51 = build51Defaults();
-const all62 = build62Defaults();
-const all42 = build42Defaults();
-
-[...all51, ...all62, ...all42].forEach(rd => {
+[...build51Defaults(), ...build62Defaults(), ...build42Defaults()].forEach(rd => {
   FACTORY_DEFAULTS[rotKey(rd.system, rd.rotation)] = rd;
 });

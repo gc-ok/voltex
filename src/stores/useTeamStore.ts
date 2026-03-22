@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { PlayerId, System, Rotation, FormationContext, PositionMap, RotationDefaults, TeamPlay, Play, AttackDirection, CoverageStrategy, DefenseType, StrategyProfile } from '@/data/types';
+import { PlayerId, System, Rotation, FormationContext, PositionMap, RotationDefaults, TeamPlay, Play, AttackDirection, CoverageStrategy, DefenseType, StrategyProfile, ComplexityLevel } from '@/data/types';
 import { FACTORY_DEFAULTS, generateDefensePositions, buildServePhases, buildReceivePhases, rotKey } from '@/data/defaults';
 import { PLAYS } from '@/data/plays';
 
@@ -16,6 +16,10 @@ interface TeamState {
   setupStep: number;
   setSetupStep: (step: number) => void;
   completeSetup: () => void;
+
+  // Complexity Level
+  complexityLevel: ComplexityLevel;
+  setComplexityLevel: (level: ComplexityLevel) => void;
 
   // Team info
   teamName: string;
@@ -98,7 +102,11 @@ export const useTeamStore = create<TeamState>()(
       hasCompletedSetup: false,
       setupStep: 0,
       setSetupStep: (step) => set({ setupStep: step }),
-      completeSetup: () => set({ hasCompletedSetup: true, setupStep: 5 }),
+      completeSetup: () => set({ hasCompletedSetup: true, setupStep: 6 }),
+
+      // Complexity Level
+      complexityLevel: 'standard' as ComplexityLevel,
+      setComplexityLevel: (level) => set({ complexityLevel: level }),
 
       teamName: 'My Team',
       setTeamName: (name) => set({ teamName: name }),
@@ -201,8 +209,9 @@ export const useTeamStore = create<TeamState>()(
             if (updated[key]) {
               updated[key] = {
                 ...updated[key],
-                baseDefense: generateDefensePositions(sys, rot, type),
-                servePhases: buildServePhases(sys, rot, type),
+                baseDefense: generateDefensePositions(sys, rot, type, s.complexityLevel),
+                servePhases: buildServePhases(sys, rot, type, s.complexityLevel),
+                receivePhases: buildReceivePhases(sys, rot, type, s.complexityLevel),
               };
             }
           }
@@ -304,6 +313,7 @@ export const useTeamStore = create<TeamState>()(
         hasCompletedSetup: state.hasCompletedSetup,
         teamName: state.teamName,
         playerNames: state.playerNames,
+        complexityLevel: state.complexityLevel,
         system: state.system,
         rotation: state.rotation,
         formationCtx: state.formationCtx,
