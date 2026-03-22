@@ -72,6 +72,34 @@ const SERVE_PHASE_LABELS = ['Pre-Serve', 'Ball Crosses Net'];
 const RECEIVE_PHASE_LABELS = ['Serve Receive', 'The Pass', 'The Set', 'OFFENSIVE PLAY', 'Base Defense'];
 
 export function SetupWizardPanel() {
+
+
+
+
+  // 🛠️ DEV TOOL: Export current phase coordinates to clipboard
+  const copyCoordinates = () => {
+    if (currentPhases.length === 0) return;
+    const phase = currentPhases[currentPhaseIdx];
+    const pos = phase.pos;
+    
+    // Format it nicely for defaults.ts
+    const code = `{
+      S: xy(${Math.round(pos.S.x)}, ${Math.round(pos.S.y)}),
+      OP: xy(${Math.round(pos.OP.x)}, ${Math.round(pos.OP.y)}),
+      MB: xy(${Math.round(pos.MB.x)}, ${Math.round(pos.MB.y)}),
+      OH: xy(${Math.round(pos.OH.x)}, ${Math.round(pos.OH.y)}),
+      RS: xy(${Math.round(pos.RS.x)}, ${Math.round(pos.RS.y)}),
+      L: xy(${Math.round(pos.L.x)}, ${Math.round(pos.L.y)})
+    }`;
+
+    navigator.clipboard.writeText(code);
+    alert('Copied to clipboard!\n\n' + code);
+  };
+  
+  
+  
+  
+  //CONTINUE ABOVE DELETE
   const tab = usePlaybookStore(s => s.tab);
   const setTab = usePlaybookStore(s => s.setTab);
 
@@ -808,6 +836,30 @@ export function SetupWizardPanel() {
             >
               Reset
             </button>
+
+
+
+
+
+
+            {/* 🛠️ DEV TOOL BUTTON */}
+            <button
+              onClick={copyCoordinates}
+              style={{
+                flex: 1, background: '#10b98120', border: '1px solid #10b98150',
+                color: '#10b981', borderRadius: 8, padding: '9px',
+                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              }}
+              title="Copy Coordinates for defaults.ts"
+            >
+              Dev Export
+            </button>
+
+
+
+
+
+
           </div>
 
           {/* Navigation */}
