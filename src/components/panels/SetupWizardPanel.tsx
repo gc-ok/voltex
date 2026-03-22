@@ -96,9 +96,11 @@ export function SetupWizardPanel() {
   const teamAnimPlaying = usePlaybookStore(s => s.teamAnimPlaying);
   const teamAnimProg = usePlaybookStore(s => s.teamAnimProg);
   const teamAnimScenario = usePlaybookStore(s => s.teamAnimScenario);
+  const teamAnimPhaseIndex = usePlaybookStore(s => s.teamAnimPhaseIndex);
   const setTeamAnimPlaying = usePlaybookStore(s => s.setTeamAnimPlaying);
   const setTeamAnimProg = usePlaybookStore(s => s.setTeamAnimProg);
   const setTeamAnimScenario = usePlaybookStore(s => s.setTeamAnimScenario);
+  const setTeamAnimPhaseIndex = usePlaybookStore(s => s.setTeamAnimPhaseIndex);
 
   const [expandedSystem, setExpandedSystem] = useState<System | null>(null);
   const [expandedDefense, setExpandedDefense] = useState<DefenseType | null>(null);
@@ -122,7 +124,10 @@ export function SetupWizardPanel() {
   const rd = rotationDefaults[key];
   const currentPhases = rd ? (scenario === 'serve' ? rd.servePhases : rd.receivePhases) : [];
   const phaseLabels = scenario === 'serve' ? SERVE_PHASE_LABELS : RECEIVE_PHASE_LABELS;
-  const currentPhaseIdx = currentPhases.length > 0 ? phIdxFromProg(teamAnimProg, currentPhases.length) : 0;
+  
+  // Calculate index safely based on whether we are playing or paused
+  const derivedIdx = currentPhases.length > 0 ? phIdxFromProg(teamAnimProg, currentPhases.length) : 0;
+  const currentPhaseIdx = teamAnimPlaying ? derivedIdx : teamAnimPhaseIndex;
 
   // Play animation (resume from current position, or restart if finished)
   const playAnimation = () => {
@@ -137,6 +142,7 @@ export function SetupWizardPanel() {
   // Pause at current position — enable editing
   const pauseAnimation = () => {
     setTeamAnimPlaying(false);
+    setTeamAnimPhaseIndex(derivedIdx);
     setIsEditingPhase(true);
   };
 
@@ -145,7 +151,9 @@ export function SetupWizardPanel() {
     if (currentPhases.length === 0) return;
     const n = currentPhases.length;
     const prog = n <= 1 ? 0 : (idx / (n - 1)) * 100;
+    
     setTeamAnimProg(prog);
+    setTeamAnimPhaseIndex(idx);
     setTeamAnimPlaying(false);
     setTeamAnimScenario(scenario);
     setIsEditingPhase(true);
