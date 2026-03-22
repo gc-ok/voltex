@@ -3,6 +3,7 @@
 import React from 'react';
 import { PD } from '@/data/players';
 import { PlayerId } from '@/data/types';
+import { useTeamStore } from '@/stores/useTeamStore';
 
 interface PlayerTooltipProps {
   pid: PlayerId;
@@ -12,9 +13,12 @@ interface PlayerTooltipProps {
 }
 
 export function PlayerTooltip({ pid, x, y, note }: PlayerTooltipProps) {
+  const playerNames = useTeamStore(s => s.playerNames);
   if (!note) return null;
   const pl = PD.find(p => p.id === pid);
   if (!pl) return null;
+  const customName = playerNames[pid];
+  const hasCustomName = customName && customName !== pl.short;
 
   return (
     <div style={{
@@ -35,21 +39,21 @@ export function PlayerTooltip({ pid, x, y, note }: PlayerTooltipProps) {
           width: 24, height: 24, borderRadius: '50%',
           background: pl.color,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 900, color: '#000',
+          fontSize: 12, fontWeight: 900, color: '#000',
           fontFamily: "'Barlow Condensed',sans-serif",
         }}>
           {pl.short}
         </div>
         <span style={{
-          fontSize: 13, color: pl.color,
+          fontSize: 14, color: pl.color,
           fontFamily: "'Barlow Condensed',sans-serif",
           fontWeight: 700,
         }}>
-          {pl.role}
+          {hasCustomName ? `${customName} — ${pl.role}` : pl.role}
         </span>
       </div>
       <div style={{
-        fontSize: 12, color: '#ffffffb0',
+        fontSize: 13, color: '#ffffffcc',
         fontFamily: "'Barlow Condensed',sans-serif",
         lineHeight: 1.6,
       }}>

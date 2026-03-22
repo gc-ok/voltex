@@ -7,7 +7,7 @@ export const CW = 540;
 export const CH = 840;
 export const NET_Y = 305;
 export const ATK_LINE = 110;
-export const PR = 21;  // player radius
+export const PR = 30;  // player radius
 export const BR = 9;   // ball radius
 
 // ═══════════════════════════════════════════════════════════════

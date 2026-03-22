@@ -1,23 +1,12 @@
 'use client';
 
 import React from 'react';
-import { usePlaybookStore, Tab } from '@/stores/usePlaybookStore';
-import { useAnimationStore } from '@/stores/useAnimationStore';
+import { usePlaybookStore } from '@/stores/usePlaybookStore';
+import { useTeamStore } from '@/stores/useTeamStore';
 
 export function Header() {
-  const tab = usePlaybookStore(s => s.tab);
   const setTab = usePlaybookStore(s => s.setTab);
-
-  const toggleMode = (mode: Tab) => {
-    if (tab === mode) {
-      // Toggle back to main
-      useAnimationStore.getState().reset();
-      setTab('main');
-    } else {
-      useAnimationStore.getState().reset();
-      setTab(mode);
-    }
-  };
+  const teamName = useTeamStore(s => s.teamName);
 
   return (
     <header style={{
@@ -36,12 +25,12 @@ export function Header() {
           width: 28, height: 28, borderRadius: 6,
           background: 'var(--accent)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 14, fontWeight: 900, color: '#000',
+          fontSize: 15, fontWeight: 900, color: '#000',
         }}>
           V
         </div>
         <span style={{
-          fontSize: 16, fontWeight: 900, letterSpacing: 3,
+          fontSize: 18, fontWeight: 900, letterSpacing: 3,
           color: 'var(--text)',
         }}>
           VOLTEX
@@ -50,38 +39,23 @@ export function Header() {
 
       <div style={{ flex: 1 }} />
 
-      {/* Mode toggles */}
+      {/* Team name (clickable → setup) */}
       <button
-        onClick={() => toggleMode('edit')}
+        onClick={() => setTab('setup')}
         style={{
-          background: tab === 'edit' ? '#e8a83e22' : 'transparent',
-          border: `1px solid ${tab === 'edit' ? '#e8a83e70' : 'transparent'}`,
-          color: tab === 'edit' ? 'var(--accent)' : 'var(--text-dim)',
-          borderRadius: 20,
-          padding: '5px 16px',
+          background: 'none',
+          border: '1px solid var(--border)',
+          color: 'var(--accent)',
+          borderRadius: 8,
+          padding: '5px 14px',
           fontSize: 13,
           fontWeight: 700,
-          letterSpacing: 1,
+          letterSpacing: 0.5,
+          cursor: 'pointer',
           transition: 'all .15s',
         }}
       >
-        ✎ EDIT
-      </button>
-      <button
-        onClick={() => toggleMode('quiz')}
-        style={{
-          background: tab === 'quiz' ? '#e8a83e22' : 'transparent',
-          border: `1px solid ${tab === 'quiz' ? '#e8a83e70' : 'transparent'}`,
-          color: tab === 'quiz' ? 'var(--accent)' : 'var(--text-dim)',
-          borderRadius: 20,
-          padding: '5px 16px',
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: 1,
-          transition: 'all .15s',
-        }}
-      >
-        QUIZ
+        {teamName}
       </button>
     </header>
   );

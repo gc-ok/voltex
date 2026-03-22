@@ -1,23 +1,49 @@
-'use client';
+import { LandingClient } from '@/components/landing/LandingClient';
 
-import { Header } from '@/components/layout/Header';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { Court } from '@/components/court/Court';
-import { PlayInfoDrawer } from '@/components/panels/PlayInfoDrawer';
-import { BottomTimeline } from '@/components/layout/BottomTimeline';
+// Schema.org structured data
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'VOLTEX',
+  applicationCategory: 'SportsApplication',
+  operatingSystem: 'Web',
+  description: 'Interactive volleyball playbook with animated plays, rotation validation, custom formations, coverage strategies, rally builder, and team quiz mode.',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+  featureList: [
+    'Animated volleyball play diagrams',
+    'Serve receive formation builder for 5-1, 6-2, and 4-2 systems',
+    'Rotation validation with rule checking',
+    'Custom team formations with drag-and-drop positioning',
+    'Coverage strategy configuration (perimeter, rotational, man-up)',
+    'Rally sequence builder',
+    'Interactive quiz mode for player training',
+    'Defense type templates',
+  ],
+};
 
-export default function Home() {
+const orgJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'VOLTEX',
+  description: 'Visual volleyball coaching platform',
+};
+
+export default function LandingPage() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <Header />
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar />
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-          <Court />
-          <PlayInfoDrawer />
-          <BottomTimeline />
-        </main>
-      </div>
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
+      <LandingClient />
+    </>
   );
 }

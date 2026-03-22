@@ -9,9 +9,9 @@
   --accent: #e8a83e;
   --accent-dim: #e8a83e60;
   --text: #ffffff;
-  --text-dim: #ffffff40;
-  --text-mid: #ffffffaa;
-  --sidebar-w: 220px;
+  --text-dim: #ffffff70;
+  --text-mid: #ffffffcc;
+  --sidebar-w: 216px;
   --header-h: 46px;
 }
 
@@ -19,7 +19,6 @@
 
 html, body {
   width: 100%; height: 100%;
-  overflow: hidden;
   background: var(--bg-deep);
   font-family: 'Barlow Condensed', sans-serif;
   color: var(--text);

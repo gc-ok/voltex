@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { useAnimationStore } from '@/stores/useAnimationStore';
-import { usePlaybookStore, getPlay } from '@/stores/usePlaybookStore';
+import { usePlaybookStore, resolvePlay } from '@/stores/usePlaybookStore';
+import { useRallyStore } from '@/stores/useRallyStore';
 import { lerp } from '@/utils/lerp';
 
 export function useAnimationLoop() {
@@ -38,9 +39,9 @@ export function useAnimationLoop() {
       setProg(newProg);
 
       if (trails) {
-        const pid = usePlaybookStore.getState().pid;
-        const play = getPlay(pid);
-        const { pos } = lerp(newProg, play.phases);
+        const rallyPhases = useRallyStore.getState().flatPhases;
+        const phases = rallyPhases || resolvePlay(usePlaybookStore.getState().pid).phases;
+        const { pos } = lerp(newProg, phases);
         pushTrail(pos);
       }
 

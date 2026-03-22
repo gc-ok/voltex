@@ -10,9 +10,13 @@ interface PlayerTokenProps {
   y: number;
   isAnimating: boolean;
   violated?: boolean;
+  displayName?: string;
 }
 
-function PlayerTokenInner({ player, x, y, isAnimating, violated = false }: PlayerTokenProps) {
+function PlayerTokenInner({ player, x, y, isAnimating, violated = false, displayName }: PlayerTokenProps) {
+  const label = displayName || player.short;
+  const labelSize = label.length > 3 ? 12 : label.length > 2 ? 15 : 19;
+
   return (
     <g style={{ cursor: isAnimating ? 'default' : 'grab' }} data-hpid={player.id}>
       {/* Violation ring */}
@@ -21,41 +25,41 @@ function PlayerTokenInner({ player, x, y, isAnimating, violated = false }: Playe
       )}
 
       {/* Shadow */}
-      <circle cx={x + 1.5} cy={y + 2} r={PR} fill="rgba(0,0,0,.35)" />
+      <circle cx={x + 2} cy={y + 3} r={PR} fill="rgba(0,0,0,.4)" />
 
       {/* Main circle */}
       <circle
         cx={x} cy={y} r={PR}
         fill={player.color}
-        stroke={violated ? '#ef4444' : 'rgba(255,255,255,.25)'}
-        strokeWidth={violated ? 2 : 1.5}
+        stroke={violated ? '#ef4444' : 'rgba(255,255,255,.3)'}
+        strokeWidth={violated ? 2.5 : 2}
       />
 
       {/* Inner ring */}
-      <circle cx={x} cy={y} r={PR - 3} fill="none" stroke="rgba(255,255,255,.15)" strokeWidth={1} />
+      <circle cx={x} cy={y} r={PR - 4} fill="none" stroke="rgba(255,255,255,.18)" strokeWidth={1} />
 
-      {/* Label */}
+      {/* Label inside circle */}
       <text
         x={x} y={y + 1}
         textAnchor="middle" dominantBaseline="middle"
-        fontSize={11} fontWeight={900} fill="#000"
+        fontSize={labelSize} fontWeight={900} fill="#000"
         fontFamily="'Barlow Condensed',sans-serif"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
-        {player.short}
+        {label}
       </text>
 
-      {/* ID label below (static only) */}
+      {/* Role label below (static only) */}
       {!isAnimating && (
         <text
-          x={x} y={y + PR + 13}
-          textAnchor="middle" fontSize={9}
-          fill={player.color + '80'}
+          x={x} y={y + PR + 16}
+          textAnchor="middle" fontSize={16}
+          fill="#ffffffcc"
           fontFamily="'Barlow Condensed',sans-serif"
           fontWeight={700}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >
-          {player.id}
+          {player.role}
         </text>
       )}
     </g>
@@ -65,5 +69,6 @@ function PlayerTokenInner({ player, x, y, isAnimating, violated = false }: Playe
 export const PlayerToken = React.memo(PlayerTokenInner, (prev, next) => {
   return prev.x === next.x && prev.y === next.y
     && prev.isAnimating === next.isAnimating
-    && prev.violated === next.violated;
+    && prev.violated === next.violated
+    && prev.displayName === next.displayName;
 });

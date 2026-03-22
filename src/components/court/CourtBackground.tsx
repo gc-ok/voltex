@@ -35,8 +35,8 @@ function CourtBackgroundInner() {
       <line x1={18} y1={NY + AL} x2={CW - 18} y2={NY + AL} stroke="#ffffff28" strokeWidth={1.5} strokeDasharray="8,5" />
 
       {/* 3m labels */}
-      <text x={26} y={NY + AL - 6} fontSize={10} fill="#e8a83e35" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>3m</text>
-      <text x={26} y={NY - AL - 6} fontSize={10} fill="#e8a83e20" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>3m</text>
+      <text x={26} y={NY + AL - 6} fontSize={16} fill="#e8a83e88" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>3m</text>
+      <text x={26} y={NY - AL - 6} fontSize={16} fill="#e8a83e60" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>3m</text>
 
       {/* Net shadow lines */}
       <line x1={18} y1={NY - 16} x2={CW - 18} y2={NY - 16} stroke="#ffffff06" strokeWidth={1} />
@@ -51,12 +51,17 @@ function CourtBackgroundInner() {
       <line x1={CW - 14} y1={NY - 28} x2={CW - 14} y2={NY + 28} stroke="#e63946" strokeWidth={5} strokeLinecap="round" />
 
       {/* Opponent label */}
-      <text x={CW / 2} y={NY / 2} textAnchor="middle" dominantBaseline="middle" fontSize={12} fill="#ffffff10" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700} letterSpacing={10}>OPPONENT</text>
+      <text x={CW / 2} y={NY / 2} textAnchor="middle" dominantBaseline="middle" fontSize={20} fill="#ffffff28" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700} letterSpacing={10}>OPPONENT</text>
 
-      {/* Zone labels */}
-      <text x={CW * 0.17} y={CH - 18} textAnchor="middle" fontSize={10} fill="#ffffff20" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z5</text>
-      <text x={CW * 0.5} y={CH - 18} textAnchor="middle" fontSize={10} fill="#ffffff20" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z6</text>
-      <text x={CW * 0.83} y={CH - 18} textAnchor="middle" fontSize={10} fill="#ffffff20" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z1</text>
+      {/* Zone labels — front row */}
+      <text x={CW * 0.17} y={NY + AL - 24} textAnchor="middle" fontSize={18} fill="#ffffff35" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z4</text>
+      <text x={CW * 0.5} y={NY + AL - 24} textAnchor="middle" fontSize={18} fill="#ffffff35" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z3</text>
+      <text x={CW * 0.83} y={NY + AL - 24} textAnchor="middle" fontSize={18} fill="#ffffff35" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z2</text>
+
+      {/* Zone labels — back row */}
+      <text x={CW * 0.17} y={CH - 14} textAnchor="middle" fontSize={18} fill="#ffffff55" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z5</text>
+      <text x={CW * 0.5} y={CH - 14} textAnchor="middle" fontSize={18} fill="#ffffff55" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z6</text>
+      <text x={CW * 0.83} y={CH - 14} textAnchor="middle" fontSize={18} fill="#ffffff55" fontFamily="'Barlow Condensed',sans-serif" fontWeight={700}>Z1</text>
     </>
   );
 }
