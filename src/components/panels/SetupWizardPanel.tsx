@@ -82,15 +82,13 @@ export function SetupWizardPanel() {
     const phase = currentPhases[currentPhaseIdx];
     const pos = phase.pos;
     
-    // Format it nicely for defaults.ts
-    const code = `{
-      S: xy(${Math.round(pos.S.x)}, ${Math.round(pos.S.y)}),
-      OP: xy(${Math.round(pos.OP.x)}, ${Math.round(pos.OP.y)}),
-      MB: xy(${Math.round(pos.MB.x)}, ${Math.round(pos.MB.y)}),
-      OH: xy(${Math.round(pos.OH.x)}, ${Math.round(pos.OH.y)}),
-      RS: xy(${Math.round(pos.RS.x)}, ${Math.round(pos.RS.y)}),
-      L: xy(${Math.round(pos.L.x)}, ${Math.round(pos.L.y)})
-    }`;
+    // Dynamically loop over whatever players are in the map
+    const lines = Object.entries(pos)
+      .filter(([_, coord]) => coord !== undefined)
+      .map(([pid, coord]) => `      '${pid}': xy(${Math.round(coord!.x)}, ${Math.round(coord!.y)})`)
+      .join(',\n');
+
+    const code = `{\n${lines}\n    }`;
 
     navigator.clipboard.writeText(code);
     alert('Copied to clipboard!\n\n' + code);
@@ -918,7 +916,7 @@ export function SetupWizardPanel() {
               </div>
               <input
                 type="text"
-                value={playerNames[pl.id]}
+                value={playerNames[pl.id] || ''}
                 onChange={e => setPlayerName(pl.id as PlayerId, e.target.value)}
                 placeholder={pl.short}
                 style={{

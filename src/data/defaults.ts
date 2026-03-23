@@ -26,9 +26,6 @@ export function rotKey(system: System, rotation: Rotation): string {
 // ═══════════════════════════════════════════════════════════════
 // Rotation Layouts
 // ═══════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════
-// Rotation Layouts
-// ═══════════════════════════════════════════════════════════════
 
 // Player roles in each of the 6 rotational slots (P1-P6) for a 5-1 system.
 // This is the source of truth for which player is in which position for each rotation.
@@ -48,56 +45,34 @@ const S5_1_LINEUP: Record<Rotation, { p1: string, p2: string, p3: string, p4: st
   6: { p1: 'L',   p2: 'S',   p3: 'OH1', p4: 'MB1', p5: 'OP',  p6: 'OH2' },
 };
 
-// This function translates the "real" lineup from S5_1_LINEUP into the legacy RotationLayout format.
-// This is a temporary compatibility layer.
-// This function translates the "real" lineup from S5_1_LINEUP into the legacy RotationLayout format.
-// This is a temporary compatibility layer.
-
+// Updated Legacy Layouts mapped to new PlayerIds to prevent compilation errors.
 const LEGACY_ROTATION_LAYOUTS: Record<Exclude<System, '5-1'>, Record<Rotation, RotationLayout>> = {
   '6-2': {
-    1: { front: ['OH', 'MB', 'OP'], back: ['RS', 'L',  'S' ] },
-    2: { front: ['OH', 'MB', 'OP'], back: ['RS', 'S',  'L' ] },
-    3: { front: ['OP', 'MB', 'OH'], back: ['S',  'L',  'RS'] },
-    4: { front: ['S',  'OP', 'MB'], back: ['OH', 'L',  'RS'] },
-    5: { front: ['MB', 'S',  'OP'], back: ['OH', 'L',  'RS'] },
-    6: { front: ['MB', 'OP', 'S' ], back: ['OH', 'L',  'RS'] },
+    1: { front: ['OH1', 'MB1', 'OP'], back: ['OH2', 'L',  'S' ] },
+    2: { front: ['OH1', 'MB1', 'OP'], back: ['OH2', 'S',  'L' ] },
+    3: { front: ['OP', 'MB1', 'OH1'], back: ['S',  'L',  'OH2'] },
+    4: { front: ['S',  'OP', 'MB1'], back: ['OH1', 'L',  'OH2'] },
+    5: { front: ['MB1', 'S',  'OP'], back: ['OH1', 'L',  'OH2'] },
+    6: { front: ['MB1', 'OP', 'S' ], back: ['OH1', 'L',  'OH2'] },
   },
   '4-2': {
-    1: { front: ['OH', 'MB', 'OP'], back: ['RS', 'L',  'S' ] },
-    2: { front: ['OH', 'MB', 'OP'], back: ['RS', 'S',  'L' ] },
-    3: { front: ['OP', 'MB', 'OH'], back: ['S',  'L',  'RS'] },
-    4: { front: ['S',  'OP', 'MB'], back: ['OH', 'L',  'RS'] },
-    5: { front: ['MB', 'S',  'OP'], back: ['OH', 'L',  'RS'] },
-    6: { front: ['MB', 'OP', 'S' ], back: ['OH', 'L',  'RS'] },
+    1: { front: ['OH1', 'MB1', 'OP'], back: ['OH2', 'L',  'S' ] },
+    2: { front: ['OH1', 'MB1', 'OP'], back: ['OH2', 'S',  'L' ] },
+    3: { front: ['OP', 'MB1', 'OH1'], back: ['S',  'L',  'OH2'] },
+    4: { front: ['S',  'OP', 'MB1'], back: ['OH1', 'L',  'OH2'] },
+    5: { front: ['MB1', 'S',  'OP'], back: ['OH1', 'L',  'OH2'] },
+    6: { front: ['MB1', 'OP', 'S' ], back: ['OH1', 'L',  'OH2'] },
   },
 };
 
 function getLegacyRotationLayout(system: System, rotation: Rotation): RotationLayout {
   if (system === '5-1') {
     const lineup = S5_1_LINEUP[rotation];
-    // The "front" and "back" arrays in the legacy layout referred to the players'
-    // home positions (Z4/3/2 and Z5/6/1), not their actual rotational positions.
-    // This was the source of the bugs. We now map the rotational players to these flawed fixed roles.
-    const playerMap: Record<string, PlayerId> = {
-      'S': 'S', 'OP': 'OP', 'L': 'L',
-      'OH1': rotation <= 3 ? 'RS' : 'OH',
-      'OH2': rotation <= 3 ? 'OH' : 'RS',
-      'MB1': 'MB',
-      'MB2': 'MB',
-    };
-     if (rotation === 3) { playerMap['MB1'] = 'L'; playerMap['OH1'] = 'RS'; playerMap['MB2'] = 'MB' }
-     if (rotation === 4) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-     if (rotation === 5) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-     if (rotation === 6) { playerMap['MB1'] = 'MB'; playerMap['MB2'] = 'L'; playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'}
-
-
     return {
-      front: [playerMap[lineup.p4], playerMap[lineup.p3], playerMap[lineup.p2]],
-      back: [playerMap[lineup.p5], playerMap[lineup.p6], playerMap[lineup.p1]],
+      front: [lineup.p4 as PlayerId, lineup.p3 as PlayerId, lineup.p2 as PlayerId],
+      back: [lineup.p5 as PlayerId, lineup.p6 as PlayerId, lineup.p1 as PlayerId],
     };
   }
-
-  // Fallback to old, incorrect layouts for other systems
   return LEGACY_ROTATION_LAYOUTS[system as Exclude<System, '5-1'>][rotation];
 }
 
@@ -123,17 +98,17 @@ export const DEFENSE_SCHEMAS: Record<DefenseType, DefenseSchema> = {
 function getActiveSetter(system: System, rotation: Rotation): PlayerId {
   const layout = getLegacyRotationLayout(system, rotation);
   if (system === '5-1') return 'S';
-  if (system === '6-2') return layout.back.includes('S') ? 'S' : 'RS';
+  if (system === '6-2') return layout.back.includes('S') ? 'S' : 'OH2';
   if (system === '4-2') {
     if (layout.front.includes('S'))  return 'S';
-    if (layout.front.includes('RS')) return 'RS';
+    if (layout.front.includes('OH2')) return 'OH2';
     if (layout.front.includes('OP')) return 'OP';
     return layout.front[0];
   }
   return 'S';
 }
 
-const N0: PhaseNotes = { S: '', OP: '', MB: '', OH: '', RS: '', L: '' };
+const N0: PhaseNotes = { S: '', OP: '', MB1: '', MB2: '', OH1: '', OH2: '', L: '' };
 
 // ═══════════════════════════════════════════════════════════════
 // Base Defense Positions
@@ -149,37 +124,22 @@ export function generateDefensePositions(
 
   if (system === '5-1') {
     const lineup = S5_1_LINEUP[rotation];
-    const playerMap: Record<string, PlayerId> = {
-      'S': 'S', 'OP': 'OP', 'L': 'L',
-      'OH1': rotation <= 3 ? 'RS' : 'OH',
-      'OH2': rotation <= 3 ? 'OH' : 'RS',
-      'MB1': 'MB', 'MB2': 'MB',
-    };
-    if (rotation === 3) { playerMap['MB1'] = 'L'; playerMap['OH1'] = 'RS'; playerMap['MB2'] = 'MB' }
-    if (rotation === 4) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 5) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 6) { playerMap['MB1'] = 'MB'; playerMap['MB2'] = 'L'; playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'}
     
-    // Assign positions based on rotational slots (P1-P6) mapping to court zones (Z1-Z6)
-    const p = lineup;
-    pos[playerMap[p.p1]] = { ...schema.digRight };  // P1 maps to Z1
-    pos[playerMap[p.p2]] = { ...schema.blockRight }; // P2 maps to Z2
-    pos[playerMap[p.p3]] = { ...schema.blockMid };   // P3 maps to Z3
-    pos[playerMap[p.p4]] = { ...schema.blockLeft };  // P4 maps to Z4
-    pos[playerMap[p.p5]] = { ...schema.digLeft };    // P5 maps to Z5
-    pos[playerMap[p.p6]] = { ...schema.digMiddle };  // P6 maps to Z6
+    // Assign positions based directly on rotational slots (P1-P6) mapping to court zones (Z1-Z6)
+    pos[lineup.p1 as PlayerId] = { ...schema.digRight };  // P1 maps to Z1
+    pos[lineup.p2 as PlayerId] = { ...schema.blockRight }; // P2 maps to Z2
+    pos[lineup.p3 as PlayerId] = { ...schema.blockMid };   // P3 maps to Z3
+    pos[lineup.p4 as PlayerId] = { ...schema.blockLeft };  // P4 maps to Z4
+    pos[lineup.p5 as PlayerId] = { ...schema.digLeft };    // P5 maps to Z5
+    pos[lineup.p6 as PlayerId] = { ...schema.digMiddle };  // P6 maps to Z6
     
     // The Libero has a special designation in Z6
     if (pos['L']) pos['L'] = { ...schema.digMiddle };
 
-
-    // The old logic had some complexity adjustments. This is not in the reference doc
-    // and was likely based on the incorrect layouts. It is removed for now to favor
-    // the documented base positions. Re-implementing this would require new rules.
     return pos;
   }
 
-  // Fallback to old incorrect logic for other systems
+  // Fallback to legacy logic for other systems
   const layout = getLegacyRotationLayout(system, rotation);
   const z4 = layout.front[0], z3 = layout.front[1], z2 = layout.front[2];
   const z5 = layout.back[0],  z6 = layout.back[1],  z1 = layout.back[2];
@@ -201,26 +161,22 @@ export function generateBasePositions(system: System, rotation: Rotation): Posit
 // ═══════════════════════════════════════════════════════════════
 // PRE-SERVE POSITIONS (Our team serves)
 // ═══════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════
-// PRE-SERVE POSITIONS (Our team serves)
-// ═══════════════════════════════════════════════════════════════
 
-// EDIT THIS to change pre-serve positions for the 5-1 system.
-// Each rotation has 6 players. The coordinates define the legal starting position *before* the serve.
-// Players who are not switching should have coordinates identical to their base defense position to avoid "drifting" animations.
+// Coordinates now perfectly match the target DEFENSE_SCHEMAS to prevent drifting.
+// Z1=Server(400,805), Z2=FR_R(452,328), Z3=FR_M(270,325), Z4=FR_L(88,328), Z5=DC_L(88,685), Z6=DC_M(270,745)
 const S5_1_PRE_SERVE_POSITIONS: Record<Rotation, Record<string, XY>> = {
-  // R1: S serves. OH1/OP switch. MB1 stays. OH2/L transition.
-  1: { 'S': xy(400, 805), 'OH1': xy(440, 340), 'MB1': xy(270, 325), 'OP': xy(100, 340), 'OH2': xy(120, 560), 'L': xy(270, 560) },
-  // R2: OH1 serves. MB1/OP/OH2 all switch.
-  2: { 'OH1': xy(400, 805), 'MB1': xy(440, 340), 'OP': xy(270, 330), 'OH2': xy(100, 340), 'L': xy(120, 560), 'S': xy(350, 560) },
-  // R3: L/MB1 serves. OP stays. MB2/OH2 switch.
-  3: { 'MB1': xy(400, 805), 'OP': xy(452, 328), 'OH2': xy(270, 330), 'MB2': xy(100, 340), 'S': xy(120, 560), 'OH1': xy(270, 560) },
-  // R4: OP serves. S is front row, stays. OH2/MB2 switch.
-  4: { 'OP': xy(400, 805), 'OH2': xy(440, 340), 'MB2': xy(270, 330), 'S': xy(88, 328), 'OH1': xy(120, 560), 'L': xy(270, 560) },
-  // R5: OH2 serves. S is front row, stays. OH1/MB2 switch.
-  5: { 'OH2': xy(400, 805), 'MB2': xy(440, 340), 'S': xy(270, 325), 'OH1': xy(100, 340), 'L': xy(120, 560), 'OP': xy(270, 560) },
-  // R6: L/MB2 serves. S is front row, stays. MB1/OH1 switch.
-  6: { 'MB2': xy(400, 805), 'S': xy(452, 328), 'OH1': xy(270, 330), 'MB1': xy(100, 340), 'OP': xy(120, 560), 'OH2': xy(270, 560) },
+  // R1: S serves. P2=OH1, P3=MB1, P4=OP, P5=OH2, P6=L
+  1: { 'S': xy(400, 805), 'OH1': xy(452, 328), 'MB1': xy(270, 325), 'OP': xy(88, 328), 'OH2': xy(88, 685), 'L': xy(270, 745) },
+  // R2: OH1 serves. P2=MB1, P3=OP, P4=OH2, P5=L, P6=S
+  2: { 'OH1': xy(400, 805), 'MB1': xy(452, 328), 'OP': xy(270, 325), 'OH2': xy(88, 328), 'L': xy(88, 685), 'S': xy(270, 745) },
+  // R3: MB1(L) serves. P2=OP, P3=OH2, P4=MB2, P5=S, P6=OH1
+  3: { 'MB1': xy(400, 805), 'OP': xy(452, 328), 'OH2': xy(270, 325), 'MB2': xy(88, 328), 'S': xy(88, 685), 'OH1': xy(270, 745) },
+  // R4: OP serves. P2=OH2, P3=MB2, P4=S, P5=OH1, P6=L
+  4: { 'OP': xy(400, 805), 'OH2': xy(452, 328), 'MB2': xy(270, 325), 'S': xy(88, 328), 'OH1': xy(88, 685), 'L': xy(270, 745) },
+  // R5: OH2 serves. P2=MB2, P3=S, P4=OH1, P5=L, P6=OP
+  5: { 'OH2': xy(400, 805), 'MB2': xy(452, 328), 'S': xy(270, 325), 'OH1': xy(88, 328), 'L': xy(88, 685), 'OP': xy(270, 745) },
+  // R6: MB2(L) serves. P2=S, P3=OH1, P4=MB1, P5=OP, P6=OH2
+  6: { 'MB2': xy(400, 805), 'S': xy(452, 328), 'OH1': xy(270, 325), 'MB1': xy(88, 328), 'OP': xy(88, 685), 'OH2': xy(270, 745) },
 };
 
 function preServePositions(system: System, rotation: Rotation, complexity: ComplexityLevel = 'standard'): PositionMap {
@@ -228,202 +184,121 @@ function preServePositions(system: System, rotation: Rotation, complexity: Compl
     const newPos = S5_1_PRE_SERVE_POSITIONS[rotation];
     const pos: PositionMap = {} as PositionMap;
 
-    // This is a temporary mapping to translate correct player roles to the app's legacy PlayerId type.
-    // This should be removed when PlayerId type is updated.
-    // Assumption: 'OH' is the outside hitter opposite the setter's starting side, 'RS' is the other one. 'MB' is the middle who starts front-row with the setter.
-    const playerMap: Record<string, PlayerId> = {
-      'S': 'S', 'OP': 'OP', 'L': 'L',
-      'OH1': rotation <= 3 ? 'RS' : 'OH',
-      'OH2': rotation <= 3 ? 'OH' : 'RS',
-      'MB1': rotation <= 3 || rotation === 6 ? 'MB' : 'RS', // No second MB in PlayerId
-      'MB2': rotation >= 4 && rotation <= 5 ? 'MB' : 'RS', // No second MB in PlayerId
-    };
-
-    // This logic is imperfect due to the limited PlayerID type, especially for MBs.
-    // It prioritizes getting OH/RS/S/OP/L correct.
-    if (rotation === 3) { playerMap['MB1'] = 'L'; playerMap['OH1'] = 'RS'; playerMap['MB2'] = 'MB' }
-    if (rotation === 4) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 5) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 6) { playerMap['MB1'] = 'MB'; playerMap['MB2'] = 'L'; playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'}
-
-
+    // Directly assign based on the exact keys now that types are updated
     for (const key in newPos) {
-      const newKey = playerMap[key] || 'OP'; // Fallback
-      pos[newKey] = newPos[key];
+      pos[key as PlayerId] = newPos[key];
     }
     
-    // Manual fix for Libero serving in R3/R6 per old logic. Ref doc says MB serves.
+    // Manual fix for Libero serving in R3/R6.
     if (rotation === 3) pos['L'] = newPos['MB1'];
     if (rotation === 6) pos['L'] = newPos['MB2'];
-
 
     return pos;
   }
 
-  // NOTE: 6-2 and 4-2 systems still use the old, incorrect logic and are pending a refactor.
-  // EDIT THE `switch` statements below to change pre-serve positions for 6-2 and 4-2 systems.
-  const isAdv = complexity === 'advanced';
+  // NOTE: 6-2 and 4-2 systems now use exact perimeter coordinates to prevent drifting and map to new ID formats.
   if (system === '6-2') {
     switch (rotation) {
-      case 1: return { S: xy(400,805), OP: xy(420,330), MB: xy(270,330), OH: xy(120,330), RS: xy(140,580), L: xy(270,620) };
-      case 2: return { L: xy(400,805), OP: xy(420,330), MB: xy(270,330), OH: xy(120,330), RS: xy(140,580), S: xy(360,580) };
-      case 3: return { RS: xy(400,805), OH: xy(320,330), MB: xy(270,330), OP: xy(220,330), S: xy(240,580), L: xy(270,620) };
-      case 4: return { RS: xy(400,805), MB: xy(320,330), OP: xy(270,330), S: xy(220,330), OH: xy(140,580), L: xy(270,620) };
-      case 5: return { RS: xy(400,805), OP: xy(320,330), S: xy(270,330), MB: xy(220,330), OH: xy(140,580), L: xy(270,620) };
-      case 6: return { RS: xy(400,805), S: xy(420,330), OP: xy(270,330), MB: xy(220,330), OH: xy(140,580), L: xy(270,620) };
+      case 1: return { S: xy(400,805), OP: xy(452,328), MB1: xy(270,325), OH1: xy(88,328), OH2: xy(88,685), L: xy(270,745) };
+      case 2: return { L: xy(400,805), OP: xy(452,328), MB1: xy(270,325), OH1: xy(88,328), OH2: xy(88,685), S: xy(270,745) };
+      case 3: return { OH2: xy(400,805), OH1: xy(452,328), MB1: xy(270,325), OP: xy(88,328), S: xy(88,685), L: xy(270,745) };
+      case 4: return { OH2: xy(400,805), MB1: xy(452,328), OP: xy(270,325), S: xy(88,328), OH1: xy(88,685), L: xy(270,745) };
+      case 5: return { OH2: xy(400,805), OP: xy(452,328), S: xy(270,325), MB1: xy(88,328), OH1: xy(88,685), L: xy(270,745) };
+      case 6: return { OH2: xy(400,805), S: xy(452,328), OP: xy(270,325), MB1: xy(88,328), OH1: xy(88,685), L: xy(270,745) };
     }
   }
   if (system === '4-2') {
     switch (rotation) {
-      case 1: return { S: xy(400,805), OP: xy(400,330), MB: xy(270,330), OH: xy(140,330), RS: xy(140,560), L: xy(270,560) };
-      case 2: return { L: xy(400,805), OP: xy(400,330), MB: xy(270,330), OH: xy(140,330), RS: xy(140,560), S: xy(270,560) };
-      case 3: return { RS: xy(400,805), OP: xy(isAdv?240:225,330), MB: xy(270,330), OH: xy(isAdv?300:315,330), S: xy(isAdv?240:225,560), L: xy(270,560) };
-      case 4: return { RS: xy(400,805), S:  xy(isAdv?240:225,330), OP: xy(270,330), MB: xy(isAdv?300:315,330), OH: xy(140,560), L: xy(270,560) };
-      case 5: return { RS: xy(400,805), MB: xy(isAdv?240:225,330), S:  xy(270,330), OP: xy(isAdv?300:315,330), OH: xy(140,560), L: xy(270,560) };
-      case 6: return { RS: xy(400,805), MB: xy(isAdv?240:225,330), OP: xy(270,330), S:  xy(isAdv?300:315,330), OH: xy(140,560), L: xy(270,560) };
+      case 1: return { S: xy(400,805), OP: xy(452,328), MB1: xy(270,325), OH1: xy(88,328), OH2: xy(88,685), L: xy(270,745) };
+      case 2: return { L: xy(400,805), OP: xy(452,328), MB1: xy(270,325), OH1: xy(88,328), OH2: xy(88,685), S: xy(270,745) };
+      case 3: return { OH2: xy(400,805), OH1: xy(452,328), MB1: xy(270,325), OP: xy(88,328), S: xy(88,685), L: xy(270,745) };
+      case 4: return { OH2: xy(400,805), MB1: xy(452,328), OP: xy(270,325), S: xy(88,328), OH1: xy(88,685), L: xy(270,745) };
+      case 5: return { OH2: xy(400,805), OP: xy(452,328), S: xy(270,325), MB1: xy(88,328), OH1: xy(88,685), L: xy(270,745) };
+      case 6: return { OH2: xy(400,805), S: xy(452,328), OP: xy(270,325), MB1: xy(88,328), OH1: xy(88,685), L: xy(270,745) };
     }
   }
-  return { S: xy(400,805), OP: xy(420,330), MB: xy(270,330), OH: xy(120,330), RS: xy(140,580), L: xy(270,620) };
+  return { S: xy(400,805), OP: xy(420,330), MB1: xy(270,330), OH1: xy(120,330), OH2: xy(140,580), L: xy(270,620) };
 }
 
 // ═══════════════════════════════════════════════════════════════
 // SERVE RECEIVE POSITIONS (Opponent serves)
 // ═══════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════
-// SERVE RECEIVE POSITIONS (Opponent serves)
-// ═══════════════════════════════════════════════════════════════
 
-// EDIT THIS to change serve-receive positions for the 5-1 system.
-// Each rotation has a standard, advanced, and basic formation.
-// The coordinates define the legal starting position *before* the opponent serves.
 const S5_1_SERVE_RECEIVE_POSITIONS: Record<Rotation, Record<string, XY>> = {
-  // R1: S pushes from P1. OH1 passes, then hits outside. OP stacks left, hits right.
   1: { 'S': xy(470, 710), 'OH1': xy(400, 550), 'MB1': xy(310, 330), 'OP': xy(120, 330), 'OH2': xy(120, 580), 'L': xy(270, 580) },
-  // R2: S pushes from P6. OH2 passes, then hits outside.
   2: { 'S': xy(400, 560), 'OH1': xy(440, 600), 'MB1': xy(440, 330), 'OP': xy(300, 330), 'OH2': xy(130, 500), 'L': xy(130, 600) },
-  // R3: S pushes from P5 (long run). OH2 passes center, hits outside.
   3: { 'S': xy(100, 580), 'OH1': xy(270, 600), 'L': xy(430, 600), 'MB2': xy(120, 330), 'OH2': xy(250, 480), 'OP': xy(440, 330) },
-  // R4: S is front row (P4). Stacks left to allow OH2 to hit outside.
   4: { 'S': xy(100, 330), 'MB2': xy(200, 330), 'OH2': xy(300, 480), 'OP': xy(440, 600), 'OH1': xy(100, 580), 'L': xy(270, 600) },
-  // R5: S is front row (P3). Easy transition.
   5: { 'S': xy(330, 330), 'MB2': xy(440, 330), 'OH1': xy(130, 480), 'OH2': xy(430, 600), 'L': xy(130, 600), 'OP': xy(270, 600) },
-  // R6: S is front row (P2), already at target.
   6: { 'S': xy(395, 318), 'MB1': xy(100, 330), 'OH1': xy(250, 480), 'L': xy(430, 600), 'OH2': xy(270, 600), 'OP': xy(120, 600) },
 };
 
 function serveReceivePositions(system: System, rotation: Rotation, complexity: ComplexityLevel = 'standard'): PositionMap {
   if (system === '5-1') {
-    // The reference doc only has one set of coordinates, so we'll ignore complexity for now.
     const newPos = S5_1_SERVE_RECEIVE_POSITIONS[rotation];
     const pos: PositionMap = {} as PositionMap;
 
-    // This is a temporary mapping to translate correct player roles to the app's legacy PlayerId type.
-    const playerMap: Record<string, PlayerId> = {
-      'S': 'S', 'OP': 'OP', 'L': 'L',
-      'OH1': rotation <= 3 ? 'RS' : 'OH',
-      'OH2': rotation <= 3 ? 'OH' : 'RS',
-      'MB1': 'MB', // Simplification
-      'MB2': 'MB', // Simplification
-    };
-    
-    if (rotation === 3) { playerMap['L'] = 'L'; playerMap['OH1'] = 'RS'; playerMap['MB2'] = 'MB' }
-    if (rotation === 4) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 5) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 6) { playerMap['MB1'] = 'MB'; playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'}
-
-
+    // Direct mapping to correct PlayerIds
     for (const key in newPos) {
-      const newKey = playerMap[key] || 'OP'; // Fallback
-      if (key === 'MB1' && rotation === 6) {
-        pos['MB'] = newPos[key]
-      } else if (key === 'MB2' && rotation === 3) {
-        pos['MB'] = newPos[key];
-      }
-      else {
-        pos[newKey] = newPos[key];
-      }
+      pos[key as PlayerId] = newPos[key];
     }
     
-    // Manual fix for Libero, since MB1/MB2 get mapped to the same 'MB' PlayerId
+    // Manual fix for Libero mapping
     if (rotation === 3) pos['L'] = newPos['L'];
     if (rotation === 6) pos['L'] = newPos['L'];
-
 
     return pos;
   }
   
-  // NOTE: 6-2 and 4-2 systems still use the old, incorrect logic and are pending a refactor.
-  // EDIT THE `switch` statements below to change serve-receive positions for 6-2 and 4-2 systems.
-  // The logic is separated by `complexity` level (standard, advanced, basic).
   if (system === '6-2') {
     if (complexity === 'standard') switch (rotation) {
-      case 1: return { S: xy(420,365), OP: xy(420,330), MB: xy(280,330), OH: xy(110,460), RS: xy(160,580), L: xy(300,580) };
-      case 2: return { S: xy(270,365), OP: xy(450,330), MB: xy(270,330), OH: xy(110,460), RS: xy(150,580), L: xy(400,580) };
-      case 3: return { S: xy(120,365), OP: xy(120,330), MB: xy(200,330), OH: xy(270,480), RS: xy(440,580), L: xy(360,580) };
-      case 4: return { RS: xy(420,365), MB: xy(420,330), OP: xy(280,330), S:  xy(110,460), OH: xy(160,580), L: xy(300,580) };
-      case 5: return { RS: xy(270,365), S:  xy(270,330), OP: xy(450,330), MB: xy(110,460), OH: xy(150,580), L: xy(400,580) };
-      case 6: return { RS: xy(120,365), MB: xy(120,330), OP: xy(200,330), S:  xy(270,480), L:  xy(360,580), OH: xy(440,580) };
+      case 1: return { S: xy(420,365), OP: xy(420,330), MB1: xy(280,330), OH1: xy(110,460), OH2: xy(160,580), L: xy(300,580) };
+      case 2: return { S: xy(270,365), OP: xy(450,330), MB1: xy(270,330), OH1: xy(110,460), OH2: xy(150,580), L: xy(400,580) };
+      case 3: return { S: xy(120,365), OP: xy(120,330), MB1: xy(200,330), OH1: xy(270,480), OH2: xy(440,580), L: xy(360,580) };
+      case 4: return { OH2: xy(420,365), MB1: xy(420,330), OP: xy(280,330), S:  xy(110,460), OH1: xy(160,580), L: xy(300,580) };
+      case 5: return { OH2: xy(270,365), S:  xy(270,330), OP: xy(450,330), MB1: xy(110,460), OH1: xy(150,580), L: xy(400,580) };
+      case 6: return { OH2: xy(120,365), MB1: xy(120,330), OP: xy(200,330), S:  xy(270,480), L:  xy(360,580), OH1: xy(440,580) };
     }
     if (complexity === 'advanced') switch (rotation) {
-      case 1: return { S: xy(420,355), OP: xy(420,330), MB: xy(280,330), OH: xy(90,460),  RS: xy(180,580), L: xy(340,580) };
-      case 2: return { S: xy(270,355), OP: xy(450,330), MB: xy(270,330), OH: xy(90,460),  RS: xy(150,580), L: xy(390,580) };
-      case 3: return { S: xy(120,355), OP: xy(120,330), MB: xy(200,330), OH: xy(270,480), RS: xy(440,580), L: xy(360,580) };
-      case 4: return { RS: xy(420,355), MB: xy(420,330), OP: xy(280,330), S:  xy(90,460),  OH: xy(180,580), L: xy(340,580) };
-      case 5: return { RS: xy(270,355), S:  xy(270,330), OP: xy(450,330), MB: xy(90,460),  OH: xy(150,580), L: xy(390,580) };
-      case 6: return { RS: xy(120,355), MB: xy(120,330), OP: xy(200,330), S:  xy(270,480), L:  xy(360,580), OH: xy(440,580) };
+      case 1: return { S: xy(420,355), OP: xy(420,330), MB1: xy(280,330), OH1: xy(90,460),  OH2: xy(180,580), L: xy(340,580) };
+      case 2: return { S: xy(270,355), OP: xy(450,330), MB1: xy(270,330), OH1: xy(90,460),  OH2: xy(150,580), L: xy(390,580) };
+      case 3: return { S: xy(120,355), OP: xy(120,330), MB1: xy(200,330), OH1: xy(270,480), OH2: xy(440,580), L: xy(360,580) };
+      case 4: return { OH2: xy(420,355), MB1: xy(420,330), OP: xy(280,330), S:  xy(90,460),  OH1: xy(180,580), L: xy(340,580) };
+      case 5: return { OH2: xy(270,355), S:  xy(270,330), OP: xy(450,330), MB1: xy(90,460),  OH1: xy(150,580), L: xy(390,580) };
+      case 6: return { OH2: xy(120,355), MB1: xy(120,330), OP: xy(200,330), S:  xy(270,480), L:  xy(360,580), OH1: xy(440,580) };
     }
     return serveReceivePositions('5-1', rotation, 'basic');
   }
   if (system === '4-2') switch (rotation) {
-    case 1: return { OP: xy(420,330), MB: xy(270,330), OH: xy(120,330), RS: xy(120,580), L: xy(270,580), S: xy(420,580) };
-    case 2: return { OP: xy(420,330), MB: xy(270,330), OH: xy(120,330), RS: xy(120,580), S: xy(270,580), L: xy(420,580) };
-    case 3: return { OP: xy(150,330), MB: xy(300,330), OH: xy(420,330), S:  xy(120,580), L: xy(270,580), RS: xy(420,580) };
-    case 4: return { S:  xy(150,330), OP: xy(300,330), MB: xy(420,330), OH: xy(120,580), L: xy(270,580), RS: xy(420,580) };
-    case 5: return { MB: xy(120,330), S:  xy(270,330), OP: xy(420,330), OH: xy(120,580), L: xy(270,580), RS: xy(420,580) };
-    case 6: return { MB: xy(120,330), OP: xy(270,330), S:  xy(420,330), OH: xy(120,580), L: xy(270,580), RS: xy(420,580) };
+    case 1: return { OP: xy(420,330), MB1: xy(270,330), OH1: xy(120,330), OH2: xy(120,580), L: xy(270,580), S: xy(420,580) };
+    case 2: return { OP: xy(420,330), MB1: xy(270,330), OH1: xy(120,330), OH2: xy(120,580), S: xy(270,580), L: xy(420,580) };
+    case 3: return { OP: xy(150,330), MB1: xy(300,330), OH1: xy(420,330), S:  xy(120,580), L: xy(270,580), OH2: xy(420,580) };
+    case 4: return { S:  xy(150,330), OP: xy(300,330), MB1: xy(420,330), OH1: xy(120,580), L: xy(270,580), OH2: xy(420,580) };
+    case 5: return { MB1: xy(120,330), S:  xy(270,330), OP: xy(420,330), OH1: xy(120,580), L: xy(270,580), OH2: xy(420,580) };
+    case 6: return { MB1: xy(120,330), OP: xy(270,330), S:  xy(420,330), OH1: xy(120,580), L: xy(270,580), OH2: xy(420,580) };
   }
-  return { S: xy(420,365), OP: xy(420,330), MB: xy(280,330), OH: xy(110,460), RS: xy(160,580), L: xy(300,580) };
+  return { S: xy(420,365), OP: xy(420,330), MB1: xy(280,330), OH1: xy(110,460), OH2: xy(160,580), L: xy(300,580) };
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PASS POSITIONS — "The Pass" phase
-// Setter is halfway to target. Everyone else holds their SR spot.
-// Edit the setter mid-point per rotation below.
+// PASS POSITIONS
 // ═══════════════════════════════════════════════════════════════
 function passPositions(system: System, rotation: Rotation, complexity: ComplexityLevel = 'standard'): PositionMap {
   const sr  = serveReceivePositions(system, rotation, complexity);
   const sid = getActiveSetter(system, rotation);
 
-  // EDIT THIS to change the setter's mid-point position during the "Pass" phase.
-  // This is the point the setter moves to while the ball is in the air from the opponent's serve.
-  // Each system and rotation has its own mid-point coordinate.
   const mid: Record<System, Record<Rotation, XY>> = {
     '5-1': {
-      // S is active setter
-      1: xy(407, 341),  // R1: S from P1(back) → target
-      2: xy(332, 341),  // R2: S from P6(back) → target
-      3: xy(257, 341),  // R3: S from P5(back) → target
-      4: xy(257, 324),  // R4: S from P4(front) → target
-      5: xy(332, 324),  // R5: S from P3(front) → target
-      6: xy(407, 324),  // R6: S from P2(front) → target
+      1: xy(407, 341), 2: xy(332, 341), 3: xy(257, 341),
+      4: xy(257, 324), 5: xy(332, 324), 6: xy(407, 324),
     },
     '6-2': {
-      // S sets from back row in R1-3, RS (as S) sets from back row in R4-6
-      1: xy(407, 341),  // R1: S from P1(back) → target
-      2: xy(332, 341),  // R2: S from P6(back) → target
-      3: xy(257, 341),  // R3: S from P5(back) → target
-      4: xy(407, 341),  // R4: RS from P1(back) → target
-      5: xy(332, 341),  // R5: RS from P6(back) → target
-      6: xy(257, 341),  // R6: RS from P5(back) → target
+      1: xy(407, 341), 2: xy(332, 341), 3: xy(257, 341),
+      4: xy(407, 341), 5: xy(332, 341), 6: xy(257, 341),
     },
     '4-2': {
-      // Active setter is always front-row
-      1: xy(407, 324),  // R1: OP (as S) from P2 → target
-      2: xy(407, 324),  // R2: OP (as S) from P2 → target
-      3: xy(272, 324),  // R3: OP (as S) from P3 → target
-      4: xy(272, 324),  // R4: S from P4 → target
-      5: xy(332, 324),  // R5: S from P3 → target
-      6: xy(407, 324),  // R6: S from P2 → target
+      1: xy(407, 324), 2: xy(407, 324), 3: xy(272, 324),
+      4: xy(272, 324), 5: xy(332, 324), 6: xy(407, 324),
     },
   };
 
@@ -431,9 +306,7 @@ function passPositions(system: System, rotation: Rotation, complexity: Complexit
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SET POSITIONS — "The Set" phase
-// Setter at target. Front row approaches antennas. Back row holds.
-// Edit approach x/y per rotation below.
+// SET POSITIONS
 // ═══════════════════════════════════════════════════════════════
 function setPositions(system: System, rotation: Rotation, complexity: ComplexityLevel = 'standard'): PositionMap {
   const pass = passPositions(system, rotation, complexity);
@@ -442,38 +315,23 @@ function setPositions(system: System, rotation: Rotation, complexity: Complexity
 
   if (system === '5-1') {
     const lineup = S5_1_LINEUP[rotation];
-    const playerMap: Record<string, PlayerId> = {
-      'S': 'S', 'OP': 'OP', 'L': 'L',
-      'OH1': rotation <= 3 ? 'RS' : 'OH', 'OH2': rotation <= 3 ? 'OH' : 'RS',
-      'MB1': 'MB', 'MB2': 'MB',
-    };
-    if (rotation === 3) { playerMap['MB1'] = 'L'; playerMap['OH1'] = 'RS'; playerMap['MB2'] = 'MB' }
-    if (rotation === 4) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 5) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 6) { playerMap['MB1'] = 'MB'; playerMap['MB2'] = 'L'; playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'}
     
     // Front-row players are in P2, P3, P4
-    const frontRow = [lineup.p2, lineup.p3, lineup.p4];
-
-    // EDIT THIS to change the attack approach positions for front-row hitters.
-    // This defines where hitters move to as they are about to attack the ball.
-    const approachPositions = {
-      [lineup.p4]: xy(88, 380),  // Left-side hitter's approach (from P4)
-      [lineup.p3]: xy(270, 380), // Middle hitter's approach (from P3)
-      [lineup.p2]: xy(452, 380), // Right-side hitter's approach (from P2)
-    };
+    const frontRow = [
+      { id: lineup.p4 as PlayerId, coord: xy(88, 380) },  // Left-side
+      { id: lineup.p3 as PlayerId, coord: xy(270, 380) }, // Middle
+      { id: lineup.p2 as PlayerId, coord: xy(452, 380) }, // Right-side
+    ];
     
-    for (const p of frontRow) {
-      const playerId = playerMap[p];
-      if (playerId !== sid) {
-        pos[playerId] = approachPositions[p];
+    for (const player of frontRow) {
+      if (player.id !== sid) {
+        pos[player.id] = player.coord;
       }
     }
     return pos;
   }
   
-  // Fallback to old incorrect logic for 6-2 and 4-2 systems
-  // EDIT THIS to change the attack approach positions for 6-2 and 4-2 systems.
+  // Fallback for 6-2 and 4-2 systems.
   const layout = getLegacyRotationLayout(system, rotation);
   const approach: Record<System, Record<Rotation, [XY, XY, XY]>> = {
     '5-1':{1:[xy(88,380),xy(270,380),xy(452,380)],2:[xy(88,380),xy(270,380),xy(452,380)],3:[xy(88,380),xy(270,380),xy(452,380)],4:[xy(88,380),xy(270,380),xy(452,380)],5:[xy(88,380),xy(270,380),xy(452,380)],6:[xy(88,380),xy(270,380),xy(452,380)]},
@@ -501,37 +359,26 @@ export function buildServePhases(
 
   if (system === '5-1') {
     const lineup = S5_1_LINEUP[rotation];
-    const server = lineup.p1;
+    const serverId = lineup.p1 as PlayerId;
     const isFront = lineup.p2 === 'S' || lineup.p3 === 'S' || lineup.p4 === 'S';
-    
-    const playerMap: Record<string, PlayerId> = {
-      'S': 'S', 'OP': 'OP', 'L': 'L',
-      'OH1': rotation <= 3 ? 'RS' : 'OH', 'OH2': rotation <= 3 ? 'OH' : 'RS',
-      'MB1': 'MB', 'MB2': 'MB',
-    };
-    if (rotation === 3) { playerMap['MB1'] = 'L'; playerMap['OH1'] = 'RS'; playerMap['MB2'] = 'MB' }
-    if (rotation === 4) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 5) { playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'; playerMap['MB2'] = 'MB'}
-    if (rotation === 6) { playerMap['MB1'] = 'MB'; playerMap['MB2'] = 'L'; playerMap['OH1'] = 'OH'; playerMap['OH2'] = 'RS'}
 
-    const serverId = playerMap[server];
-
-    const preNotes: PhaseNotes = { S: '', OP: '', MB: '', OH: '', RS: '', L: '' };
+    const preNotes: PhaseNotes = { S: '', OP: '', MB1: '', MB2: '', OH1: '', OH2: '', L: '' };
     preNotes[serverId] = 'Serving.';
 
     const baseNotes: PhaseNotes = {
       S:  isFront ? 'Right-front blocking.' : 'Z1 base (right-back) ready to defend.',
       OP: 'Base position.',
-      MB: 'Base position.',
-      OH: 'Base position.',
-      RS: 'Base position.',
+      MB1: 'Base position.',
+      MB2: 'Base position.',
+      OH1: 'Base position.',
+      OH2: 'Base position.',
       L:  'Deep center base.',
     };
     
     const serverPos = preServe[serverId];
     return [
       { label: 'Pre-Serve',    ball: { x: serverPos?.x ?? 400, y: serverPos?.y ?? 805 }, pos: preServe, notes: preNotes  },
-      { label: 'Base Defense', ball: xy(270, 112),                                      pos: base,     notes: baseNotes },
+      { label: 'Base Defense', ball: xy(270, 112),                                       pos: base,     notes: baseNotes },
     ];
   }
 
@@ -543,22 +390,24 @@ export function buildServePhases(
   const preNotes: PhaseNotes = {
     S:  server === 'S'  ? 'Serving.' : (isFront ? 'At net, ready to set.' : 'Back row.'),
     OP: layout.front.includes('OP') ? 'At net, blocking position.' : 'Back row.',
-    MB: layout.front.includes('MB') ? 'At net, center.'            : 'Back row.',
-    OH: layout.front.includes('OH') ? 'At net, left side.'         : 'Back row.',
-    RS: server === 'RS' ? 'Serving.' : 'Back row.',
+    MB1: layout.front.includes('MB1') ? 'At net, center.'            : 'Back row.',
+    MB2: '',
+    OH1: layout.front.includes('OH1') ? 'At net, left side.'         : 'Back row.',
+    OH2: server === 'OH2' ? 'Serving.' : 'Back row.',
     L:  server === 'L'  ? 'Serving.' : 'Back row, defensive ready.',
   };
   const baseNotes: PhaseNotes = {
     S:  isFront ? 'Right-front blocking.' : 'Z1 base (right-back) ready to defend.',
     OP: layout.front.includes('OP') ? 'Right antenna blocking.' : 'Back-row defense.',
-    MB: layout.front.includes('MB') ? 'Center net.'             : 'Back-row defense.',
-    OH: layout.front.includes('OH') ? 'Left antenna blocking.'  : 'Back-row defense.',
-    RS: 'Base position.',
+    MB1: layout.front.includes('MB1') ? 'Center net.'             : 'Back-row defense.',
+    MB2: '',
+    OH1: layout.front.includes('OH1') ? 'Left antenna blocking.'  : 'Back-row defense.',
+    OH2: 'Base position.',
     L:  'Deep center base.',
   };
   return [
     { label: 'Pre-Serve',    ball: { x: preServe[server]?.x ?? 400, y: preServe[server]?.y ?? 805 }, pos: preServe, notes: preNotes  },
-    { label: 'Base Defense', ball: xy(270, 112),                                                      pos: base,     notes: baseNotes },
+    { label: 'Base Defense', ball: xy(270, 112),                                                     pos: base,     notes: baseNotes },
   ];
 }
 
@@ -577,12 +426,12 @@ export function buildReceivePhases(
   const setPos  = setPositions(system, rotation, complexity);
   const sid     = getActiveSetter(system, rotation);
 
-  // OFFENSIVE PLAY: players hold set positions — overlay triggers here, no play coded in.
+  // OFFENSIVE PLAY: players hold set positions
   const atkPos: PositionMap = { ...setPos };
 
   const passNotes: PhaseNotes = { ...N0, [sid]: 'Releasing to target.', L: 'Passing ball to target.' };
-  const setNotes:  PhaseNotes = { S: 'Setting the offense.', OP: 'Ready to attack.', MB: 'Ready to attack.', OH: 'Ready to attack.', RS: 'Coverage.', L: 'Coverage.' };
-  const atkNotes:  PhaseNotes = { S: 'Ball is live.', OP: 'Ball is live.', MB: 'Ball is live.', OH: 'Ball is live.', RS: 'Ball is live.', L: 'Ball is live.' };
+  const setNotes:  PhaseNotes = { S: 'Setting the offense.', OP: 'Ready to attack.', MB1: 'Ready to attack.', MB2: 'Ready to attack.', OH1: 'Ready to attack.', OH2: 'Coverage.', L: 'Coverage.' };
+  const atkNotes:  PhaseNotes = { S: 'Ball is live.', OP: 'Ball is live.', MB1: 'Ball is live.', MB2: 'Ball is live.', OH1: 'Ball is live.', OH2: 'Ball is live.', L: 'Ball is live.' };
 
   return [
     { label: 'Serve Receive',  ball: xy(270, 100),   pos: srPos,   notes: N0        },

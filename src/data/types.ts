@@ -2,7 +2,7 @@
 // Core Types
 // ═══════════════════════════════════════════════════════════════
 
-export type PlayerId = 'S' | 'OP' | 'MB' | 'OH' | 'RS' | 'L';
+export type PlayerId = 'S' | 'S1' | 'S2' | 'OP' | 'RS' | 'MB1' | 'MB2' | 'OH1' | 'OH2' | 'L' | 'DS' | (string & {});
 
 export interface XY {
   x: number;
@@ -16,16 +16,9 @@ export interface PlayerDef {
   color: string;
 }
 
-export interface PhaseNotes {
-  S: string;
-  OP: string;
-  MB: string;
-  OH: string;
-  RS: string;
-  L: string;
-}
+export type PositionMap = Partial<Record<string, XY>>;
 
-export type PositionMap = Record<PlayerId, XY>;
+export type PhaseNotes = Partial<Record<string, string>>;
 
 export interface Phase {
   label: string;

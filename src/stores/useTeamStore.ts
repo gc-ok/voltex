@@ -25,8 +25,8 @@ interface TeamState {
   teamName: string;
   setTeamName: (name: string) => void;
 
-  // Player names (global rename)
-  playerNames: Record<PlayerId, string>;
+  // Player names (global rename) - Made Partial to support flexible rosters
+  playerNames: Partial<Record<string, string>>;
   setPlayerName: (pid: PlayerId, name: string) => void;
   resetPlayerNames: () => void;
 
@@ -68,29 +68,30 @@ interface TeamState {
   removeFromTeamPlaybook: (id: string) => void;
 }
 
-const DEFAULT_NAMES: Record<PlayerId, string> = {
-  S: 'S', OP: 'OP', MB: 'MB', OH: 'OH', RS: 'RS', L: 'L',
+// Made Partial and updated to match the new 5-1 base roles
+const DEFAULT_NAMES: Partial<Record<string, string>> = {
+  S: 'S', OP: 'OP', MB1: 'MB1', MB2: 'MB2', OH1: 'OH1', OH2: 'OH2', L: 'L', DS: 'DS'
 };
 
 function cloneDefaults(): Record<string, RotationDefaults> {
   return JSON.parse(JSON.stringify(FACTORY_DEFAULTS));
 }
 
-// Default perimeter coverage positions per attack direction
+// Updated to use the new PlayerId keys (OH1, OH2, MB1)
 const DEFAULT_COVERAGE: CoverageStrategy = {
   blockerCount: 2,
   coverage: {
     left: {
-      S: { x: 200, y: 460 }, OP: { x: 120, y: 340 }, MB: { x: 88, y: 342 },
-      OH: { x: 88, y: 322 }, RS: { x: 340, y: 460 }, L: { x: 270, y: 580 },
+      S: { x: 200, y: 460 }, OP: { x: 120, y: 340 }, MB1: { x: 88, y: 342 },
+      OH1: { x: 88, y: 322 }, OH2: { x: 340, y: 460 }, L: { x: 270, y: 580 },
     },
     center: {
-      S: { x: 395, y: 380 }, OP: { x: 380, y: 340 }, MB: { x: 270, y: 318 },
-      OH: { x: 160, y: 340 }, RS: { x: 160, y: 460 }, L: { x: 270, y: 580 },
+      S: { x: 395, y: 380 }, OP: { x: 380, y: 340 }, MB1: { x: 270, y: 318 },
+      OH1: { x: 160, y: 340 }, OH2: { x: 160, y: 460 }, L: { x: 270, y: 580 },
     },
     right: {
-      S: { x: 395, y: 340 }, OP: { x: 452, y: 342 }, MB: { x: 458, y: 322 },
-      OH: { x: 340, y: 460 }, RS: { x: 200, y: 460 }, L: { x: 270, y: 580 },
+      S: { x: 395, y: 340 }, OP: { x: 452, y: 342 }, MB1: { x: 458, y: 322 },
+      OH1: { x: 340, y: 460 }, OH2: { x: 200, y: 460 }, L: { x: 270, y: 580 },
     },
   },
 };
@@ -114,7 +115,7 @@ export const useTeamStore = create<TeamState>()(
       // Player names
       playerNames: { ...DEFAULT_NAMES },
       setPlayerName: (pid, name) => set((s) => ({
-        playerNames: { ...s.playerNames, [pid]: name || DEFAULT_NAMES[pid] },
+        playerNames: { ...s.playerNames, [pid]: name || DEFAULT_NAMES[pid] || pid },
       })),
       resetPlayerNames: () => set({ playerNames: { ...DEFAULT_NAMES } }),
 
