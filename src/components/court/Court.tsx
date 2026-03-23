@@ -46,6 +46,8 @@ export function Court() {
   const quizProg = useQuizStore(s => s.quizProg);
   const qIdx = useQuizStore(s => s.qIdx);
   const qDone = useQuizStore(s => s.qDone);
+  
+  const setupStep = useTeamStore(s => s.setupStep);
   const playerNames = useTeamStore(s => s.playerNames);
   const rallyPhases = useRallyStore(s => s.flatPhases);
 
@@ -73,10 +75,8 @@ export function Court() {
   const isAnimating = isLibOrStrat && (playing || prog > 0);
   const isQuizAnimating = isQuiz && !qDone;
 
-  // Get the right play data (editor may have overrides) — skip in team/setup modes for performance
   const play = isTeam ? null : (isEditing ? useEditorStore.getState().getPlay(pid) : resolvePlay(pid));
 
-  // Compute positions + ball + active phase label
   let positions: PositionMap;
   let ball: XY;
   let violatedIds = new Set<PlayerId>();
@@ -93,7 +93,6 @@ export function Court() {
         positions = result.pos;
         ball = result.ball;
         
-        // Safely determine which phase label to show based on progress
         const derivedIdx = phIdxFromProg(teamAnimProg, phases.length);
         const activeIdx = teamAnimPlaying ? derivedIdx : teamAnimPhaseIndex;
         currentPhaseLabel = phases[activeIdx]?.label || '';
@@ -128,14 +127,12 @@ export function Court() {
       violatedIds = new Set(editorViolations.flatMap(v => v.ids));
     }
   } else {
-    // Fallback (should not happen)
     const fallbackPlay = getPlay(pid);
     positions = fallbackPlay.phases[0].pos;
     ball = fallbackPlay.phases[0].ball;
     currentPhaseLabel = fallbackPlay.phases[0].label || '';
   }
 
-  // Tooltip note
   const getNote = useCallback((hoveredPid: PlayerId): string => {
     const st = usePlaybookStore.getState();
     const an = useAnimationStore.getState();
@@ -159,7 +156,6 @@ export function Court() {
     return phase?.notes?.[hoveredPid] || '';
   }, []);
 
-  // SVG coordinate helper
   const toSvg = useCallback((e: React.MouseEvent | MouseEvent) => {
     const svg = svgRef.current;
     if (!svg) return null;
@@ -170,7 +166,6 @@ export function Court() {
     };
   }, []);
 
-  // Mouse down on player to start drag (edit or team mode)
   const handleMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     const curTab = usePlaybookStore.getState().tab;
     const curIsEditing = usePlaybookStore.getState().isEditing;
@@ -178,7 +173,6 @@ export function Court() {
     const pt = toSvg(e);
     if (!pt) return;
 
-    // Get positions depending on mode
     let curPos: PositionMap;
     if (curTab === 'myteam' || curTab === 'setup') {
       const pbState = usePlaybookStore.getState();
@@ -212,7 +206,6 @@ export function Court() {
       curPos = phase.pos;
     }
 
-    // Find closest player
     let found: PlayerId | null = null;
     let best = 999;
     PD.forEach(pl => {
@@ -235,12 +228,10 @@ export function Court() {
     }
   }, [toSvg]);
 
-  // Mouse move: drag or tooltip
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
     if (!svg) return;
 
-    // Handle team drag
     const curTab = usePlaybookStore.getState().tab;
     if (teamDrag.current && (curTab === 'myteam' || curTab === 'setup')) {
       const pt = toSvg(e);
@@ -273,7 +264,6 @@ export function Court() {
       return;
     }
 
-    // Handle editor drag
     const { dragId: dId } = useEditorStore.getState();
     if (dId && usePlaybookStore.getState().isEditing) {
       const pt = toSvg(e);
@@ -285,7 +275,6 @@ export function Court() {
       return;
     }
 
-    // Handle tooltip
     const pt = toSvg(e);
     if (!pt) return;
 
@@ -340,92 +329,98 @@ export function Court() {
     useEditorStore.getState().endDrag();
   }, []);
 
+  // 🌟 THE COURT HIDING LOGIC: Hidden during early setup steps unless an animation is playing!
+  const isSetupEarly = tab === 'setup' && setupStep < 5;
+  const hideCourt = isSetupEarly && !teamAnimPlaying;
+
   return (
     <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 12, minHeight: 0 }}>
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${CW} ${CH}`}
-        style={{ display: 'block', height: '100%', width: 'auto', maxWidth: '100%', aspectRatio: `${CW} / ${CH}`, borderRadius: 8, margin: '0 auto', flexShrink: 0 }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-      >
-        <CourtBackground />
+      
+      {/* INFORMATIVE OVERLAY FOR SETUP WIZARD PREVIEWS */}
+      {tab === 'setup' && teamAnimPlaying && (
+        <div style={{
+          position: 'absolute', top: '10%', left: '50%', zIndex: 10,
+          transform: 'translateX(-50%)',
+          pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 4,
+          alignItems: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ 
+              background: 'var(--accent)', color: '#000', 
+              padding: '6px 12px', borderRadius: 6, fontWeight: 900, fontSize: 18 
+            }}>
+              Previewing {teamRotation ? `Rotation ${teamRotation}` : 'Play'}
+            </div>
+          </div>
+          <div style={{ 
+            fontSize: 36, fontWeight: 900, color: '#fff', 
+            textShadow: '0 2px 12px rgba(0,0,0,0.8)',
+            marginTop: 12, letterSpacing: 0.5
+          }}>
+            {currentPhaseLabel}
+          </div>
+        </div>
+      )}
 
-        {/* Ghost trails */}
-        {trails && <GhostTrails trailData={trailData} />}
+      {/* SVG WRAPPER WITH OPACITY FADE */}
+      <div style={{ 
+        height: '100%', width: '100%', 
+        display: 'flex', justifyContent: 'center', 
+        opacity: hideCourt ? 0 : 1, 
+        transition: 'opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1)' 
+      }}>
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${CW} ${CH}`}
+          style={{ display: 'block', height: '100%', width: 'auto', maxWidth: '100%', aspectRatio: `${CW} / ${CH}`, borderRadius: 8, margin: '0 auto', flexShrink: 0 }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+        >
+          <CourtBackground />
 
-        {/* Ball */}
-        {ball && <BallToken x={ball.x} y={ball.y} />}
+          {/* Ghost trails */}
+          {trails && <GhostTrails trailData={trailData} />}
 
-        {/* Players */}
-        {PD.map(pl => {
-          const p = positions[pl.id];
-          if (!p) return null;
-          return (
-            <PlayerToken
-              key={pl.id}
-              player={pl}
-              x={p.x}
-              y={p.y}
-              isAnimating={isAnimating || isQuizAnimating}
-              violated={violatedIds.has(pl.id)}
-              displayName={playerNames[pl.id]}
-            />
-          );
-        })}
+          {/* Ball */}
+          {ball && <BallToken x={ball.x} y={ball.y} />}
 
-        {/* OFFENSIVE PLAY OVERLAY */}
-        {currentPhaseLabel === 'OFFENSIVE PLAY' && (
-          <g style={{ pointerEvents: 'none' }}>
-            <rect 
-              x="0" 
-              y="0" 
-              width={CW} 
-              height={CH} 
-              fill="#0a1428" 
-            />
-            <text 
-              x={CW / 2} 
-              y={CH / 2} 
-              fill="var(--accent)" 
-              fontSize="48" 
-              fontWeight="900" 
-              textAnchor="middle" 
-              alignmentBaseline="middle"
-              letterSpacing="2"
-              style={{ 
-                textShadow: '0px 4px 12px rgba(0,0,0,0.8)',
-                animation: 'pulse 1.5s infinite alternate' 
-              }}
-            >
-              OFFENSIVE PLAY
-            </text>
-            <text 
-              x={CW / 2} 
-              y={(CH / 2) + 40} 
-              fill="#ffffff" 
-              fontSize="16" 
-              fontWeight="700" 
-              textAnchor="middle" 
-              alignmentBaseline="middle"
-              style={{ textShadow: '0px 2px 8px rgba(0,0,0,0.8)' }}
-            >
-              Ball crosses net → Transitioning to base
-            </text>
-          </g>
-        )}
-      </svg>
+          {/* Players */}
+          {PD.map(pl => {
+            const p = positions[pl.id];
+            if (!p) return null;
+            return (
+              <PlayerToken
+                key={pl.id}
+                player={pl}
+                x={p.x}
+                y={p.y}
+                isAnimating={isAnimating || isQuizAnimating}
+                violated={violatedIds.has(pl.id)}
+                displayName={playerNames[pl.id]}
+              />
+            );
+          })}
+
+          {/* OFFENSIVE PLAY OVERLAY - HIDDEN DURING SETUP */}
+          {currentPhaseLabel === 'OFFENSIVE PLAY' && tab !== 'setup' && (
+            <g style={{ pointerEvents: 'none' }}>
+              <rect x="0" y="0" width={CW} height={CH} fill="#0a1428" />
+              <text x={CW / 2} y={CH / 2} fill="var(--accent)" fontSize="48" fontWeight="900" textAnchor="middle" alignmentBaseline="middle" letterSpacing="2" style={{ textShadow: '0px 4px 12px rgba(0,0,0,0.8)', animation: 'pulse 1.5s infinite alternate' }}>
+                OFFENSIVE PLAY
+              </text>
+              <text x={CW / 2} y={(CH / 2) + 40} fill="#ffffff" fontSize="16" fontWeight="700" textAnchor="middle" alignmentBaseline="middle" style={{ textShadow: '0px 2px 8px rgba(0,0,0,0.8)' }}>
+                Ball crosses net → Transitioning to base
+              </text>
+            </g>
+          )}
+        </svg>
+      </div>
 
       {/* Tooltip */}
-      {tooltip && (
-        <PlayerTooltip
-          pid={tooltip.pid}
-          x={tooltip.x}
-          y={tooltip.y}
-          note={getNote(tooltip.pid)}
-        />
+      {tooltip && !hideCourt && (
+        <PlayerTooltip pid={tooltip.pid} x={tooltip.x} y={tooltip.y} note={getNote(tooltip.pid)} />
       )}
     </div>
   );

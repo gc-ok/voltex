@@ -1,6 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
-// Core Types
-// ═══════════════════════════════════════════════════════════════
+// src/data/types.ts
 
 export type PlayerId = 'S' | 'S1' | 'S2' | 'OP' | 'RS' | 'MB1' | 'MB2' | 'OH1' | 'OH2' | 'L' | 'DS' | (string & {});
 
@@ -51,15 +49,17 @@ export type System = '5-1' | '6-2' | '4-2';
 export type Rotation = 1 | 2 | 3 | 4 | 5 | 6;
 export type FormationContext = 'serveReceive' | 'baseDefense' | 'baseOffense';
 export type ComplexityLevel = 'basic' | 'standard' | 'advanced';
+export type ReceiveTransition = 'switch-early' | 'switch-late'; // NEW TYPE
 
 export interface RotationDefaults {
   system: System;
   rotation: Rotation;
+  receiveTransition: ReceiveTransition; // NEW PROPERTY
   serveReceive: PositionMap;
   baseDefense: PositionMap;
   baseOffense: PositionMap;
   servePhases: Phase[];       // 3 phases: pre-serve → serve → base defense
-  receivePhases: Phase[];     // 3 phases: serve receive → transition → base defense
+  receivePhases: Phase[];     // 6 phases: serve receive → pass -> set -> attack -> transition → base defense
 }
 
 export interface RallyStep {
@@ -78,25 +78,18 @@ export interface TeamPlay extends Play {
   isCustomized: boolean;
 }
 
-// Defense Types
 export type DefenseType = 'perimeter' | 'rotational' | 'man-up';
 
-// Rotation-Aware Defense
 export interface RotationLayout {
-  front: [PlayerId, PlayerId, PlayerId]; // [Z4 left, Z3 mid, Z2 right]
-  back: [PlayerId, PlayerId, PlayerId];  // [Z5 left, Z6 mid, Z1 right]
+  front: [PlayerId, PlayerId, PlayerId];
+  back: [PlayerId, PlayerId, PlayerId]; 
 }
 
 export interface DefenseSchema {
-  blockLeft: XY;
-  blockMid: XY;
-  blockRight: XY;
-  digLeft: XY;
-  digMiddle: XY;
-  digRight: XY;
+  blockLeft: XY; blockMid: XY; blockRight: XY;
+  digLeft: XY; digMiddle: XY; digRight: XY;
 }
 
-// Strategy Profiles
 export interface StrategyProfile {
   id: string;
   name: string;
@@ -107,7 +100,6 @@ export interface StrategyProfile {
   coverageStrategy: CoverageStrategy;
 }
 
-// Coverage Strategies
 export type AttackDirection = 'left' | 'center' | 'right';
 
 export interface CoverageStrategy {

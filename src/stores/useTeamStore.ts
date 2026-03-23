@@ -2,39 +2,33 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { PlayerId, System, Rotation, FormationContext, PositionMap, RotationDefaults, TeamPlay, Play, AttackDirection, CoverageStrategy, DefenseType, StrategyProfile, ComplexityLevel } from '@/data/types';
+import { PlayerId, System, Rotation, FormationContext, PositionMap, RotationDefaults, TeamPlay, Play, AttackDirection, CoverageStrategy, DefenseType, StrategyProfile, ComplexityLevel, ReceiveTransition } from '@/data/types';
 import { FACTORY_DEFAULTS, generateDefensePositions, buildServePhases, buildReceivePhases, rotKey } from '@/data/defaults';
 import { PLAYS } from '@/data/plays';
 
-// ═══════════════════════════════════════════════════════════════
-// Team Store — player names, rotation defaults, team playbook
-// ═══════════════════════════════════════════════════════════════
-
 interface TeamState {
-  // Onboarding
   hasCompletedSetup: boolean;
   setupStep: number;
   setSetupStep: (step: number) => void;
   completeSetup: () => void;
 
-  // Complexity Level
   complexityLevel: ComplexityLevel;
   setComplexityLevel: (level: ComplexityLevel) => void;
 
-  // Team info
   teamName: string;
   setTeamName: (name: string) => void;
 
-  // Player names (global rename) - Made Partial to support flexible rosters
   playerNames: Partial<Record<string, string>>;
   setPlayerName: (pid: PlayerId, name: string) => void;
   resetPlayerNames: () => void;
 
-  // Rotation defaults
   system: System;
   rotation: Rotation;
   formationCtx: FormationContext;
   rotationDefaults: Record<string, RotationDefaults>;
+  receiveTransition: ReceiveTransition; // NEW
+  setReceiveTransition: (rt: ReceiveTransition) => void; // NEW
+  
   setSystem: (system: System) => void;
   setRotation: (rotation: Rotation) => void;
   setFormationCtx: (ctx: FormationContext) => void;
@@ -44,16 +38,13 @@ interface TeamState {
   resetRotation: (system: System, rotation: Rotation) => void;
   resetRotationPhases: (system: System, rotation: Rotation, scenario: 'serve' | 'receive') => void;
 
-  // Defense type
   defenseType: DefenseType;
   setDefenseType: (type: DefenseType) => void;
 
-  // Coverage
   coverageStrategy: CoverageStrategy;
   setCoverageBlockerCount: (count: 1 | 2) => void;
   updateCoveragePosition: (dir: AttackDirection, pid: PlayerId, x: number, y: number) => void;
 
-  // Strategy profiles
   profiles: StrategyProfile[];
   activeProfileId: string | null;
   saveProfile: (name: string) => void;
@@ -61,14 +52,12 @@ interface TeamState {
   deleteProfile: (id: string) => void;
   renameProfile: (id: string, name: string) => void;
 
-  // Team playbook
   teamPlays: TeamPlay[];
   addToTeamPlaybook: (playId: string) => void;
   updateTeamPlay: (id: string, updates: Partial<Play>) => void;
   removeFromTeamPlaybook: (id: string) => void;
 }
 
-// Made Partial and updated to match the new 5-1 base roles
 const DEFAULT_NAMES: Partial<Record<string, string>> = {
   S: 'S', OP: 'OP', MB1: 'MB1', MB2: 'MB2', OH1: 'OH1', OH2: 'OH2', L: 'L', DS: 'DS'
 };
@@ -77,7 +66,6 @@ function cloneDefaults(): Record<string, RotationDefaults> {
   return JSON.parse(JSON.stringify(FACTORY_DEFAULTS));
 }
 
-// Updated to use the new PlayerId keys (OH1, OH2, MB1)
 const DEFAULT_COVERAGE: CoverageStrategy = {
   blockerCount: 2,
   coverage: {
@@ -99,31 +87,66 @@ const DEFAULT_COVERAGE: CoverageStrategy = {
 export const useTeamStore = create<TeamState>()(
   persist(
     (set, get) => ({
-      // Onboarding
       hasCompletedSetup: false,
       setupStep: 0,
       setSetupStep: (step) => set({ setupStep: step }),
-      completeSetup: () => set({ hasCompletedSetup: true, setupStep: 6 }),
+      completeSetup: () => set({ hasCompletedSetup: true, setupStep: 7 }),
 
-      // Complexity Level
       complexityLevel: 'standard' as ComplexityLevel,
-      setComplexityLevel: (level) => set({ complexityLevel: level }),
+      setComplexityLevel: (level) => set((s) => {
+        const updated = { ...s.rotationDefaults };
+        const systems: System[] = ['5-1', '6-2', '4-2'];
+        const rotations: Rotation[] = [1, 2, 3, 4, 5, 6];
+        for (const sys of systems) {
+          for (const rot of rotations) {
+            const key = rotKey(sys, rot);
+            if (updated[key]) {
+              updated[key] = {
+                ...updated[key],
+                baseDefense: generateDefensePositions(sys, rot, s.defenseType, level),
+                servePhases: buildServePhases(sys, rot, s.defenseType, level),
+                receivePhases: buildReceivePhases(sys, rot, s.defenseType, level, s.receiveTransition),
+              };
+            }
+          }
+        }
+        return { complexityLevel: level, rotationDefaults: updated };
+      }),
 
       teamName: 'My Team',
       setTeamName: (name) => set({ teamName: name }),
 
-      // Player names
       playerNames: { ...DEFAULT_NAMES },
       setPlayerName: (pid, name) => set((s) => ({
         playerNames: { ...s.playerNames, [pid]: name || DEFAULT_NAMES[pid] || pid },
       })),
       resetPlayerNames: () => set({ playerNames: { ...DEFAULT_NAMES } }),
 
-      // Rotation defaults
       system: '5-1',
       rotation: 1 as Rotation,
       formationCtx: 'serveReceive' as FormationContext,
       rotationDefaults: cloneDefaults(),
+      
+      // NEW TRANSITION SETTINGS
+      receiveTransition: 'switch-late' as ReceiveTransition,
+      setReceiveTransition: (type) => set((s) => {
+        const updated = { ...s.rotationDefaults };
+        const systems: System[] = ['5-1', '6-2', '4-2'];
+        const rotations: Rotation[] = [1, 2, 3, 4, 5, 6];
+        for (const sys of systems) {
+          for (const rot of rotations) {
+            const key = rotKey(sys, rot);
+            if (updated[key]) {
+              updated[key] = {
+                ...updated[key],
+                receiveTransition: type,
+                receivePhases: buildReceivePhases(sys, rot, s.defenseType, s.complexityLevel, type),
+              };
+            }
+          }
+        }
+        return { receiveTransition: type, rotationDefaults: updated };
+      }),
 
       setSystem: (system) => set({ system }),
       setRotation: (rotation) => set({ rotation }),
@@ -197,9 +220,7 @@ export const useTeamStore = create<TeamState>()(
         };
       }),
 
-      // Defense type
       defenseType: 'perimeter' as DefenseType,
-
       setDefenseType: (type) => set((s) => {
         const updated = { ...s.rotationDefaults };
         const systems: System[] = ['5-1', '6-2', '4-2'];
@@ -212,7 +233,7 @@ export const useTeamStore = create<TeamState>()(
                 ...updated[key],
                 baseDefense: generateDefensePositions(sys, rot, type, s.complexityLevel),
                 servePhases: buildServePhases(sys, rot, type, s.complexityLevel),
-                receivePhases: buildReceivePhases(sys, rot, type, s.complexityLevel),
+                receivePhases: buildReceivePhases(sys, rot, type, s.complexityLevel, s.receiveTransition),
               };
             }
           }
@@ -220,7 +241,6 @@ export const useTeamStore = create<TeamState>()(
         return { defenseType: type, rotationDefaults: updated };
       }),
 
-      // Coverage
       coverageStrategy: JSON.parse(JSON.stringify(DEFAULT_COVERAGE)),
 
       setCoverageBlockerCount: (count) => set((s) => ({
@@ -240,7 +260,6 @@ export const useTeamStore = create<TeamState>()(
         },
       })),
 
-      // Strategy profiles
       profiles: [],
       activeProfileId: null,
 
@@ -281,7 +300,6 @@ export const useTeamStore = create<TeamState>()(
         profiles: s.profiles.map(p => p.id === id ? { ...p, name } : p),
       })),
 
-      // Team playbook
       teamPlays: [],
 
       addToTeamPlaybook: (playId) => set((s) => {
@@ -319,6 +337,7 @@ export const useTeamStore = create<TeamState>()(
         rotation: state.rotation,
         formationCtx: state.formationCtx,
         defenseType: state.defenseType,
+        receiveTransition: state.receiveTransition,
         rotationDefaults: state.rotationDefaults,
         coverageStrategy: state.coverageStrategy,
         profiles: state.profiles,
