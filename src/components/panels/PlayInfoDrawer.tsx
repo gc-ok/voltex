@@ -42,6 +42,13 @@ export function PlayInfoDrawer() {
     setPhIdx(i);
   };
 
+  const handleEditClick = () => {
+    useEditorStore.getState().resetEdits(pid);
+    usePlaybookStore.getState().setIsEditing(true);
+  };
+
+  const isAlreadyInTeamPlaybook = teamPlays.some(tp => tp.sourceId === pid);
+
   return (
     <div style={{
       position: 'absolute',
@@ -61,50 +68,46 @@ export function PlayInfoDrawer() {
       <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--accent)', letterSpacing: 0.5, marginBottom: 4 }}>
         {play.name}
       </div>
-      <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5, marginBottom: 8 }}>
+      <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5, marginBottom: 12 }}>
         {play.desc}
       </div>
 
-      {/* Add to Team button (library only) */}
-      {tab === 'library' && (
-        !teamPlays.some(tp => tp.sourceId === pid) ? (
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        {tab === 'library' && !isAlreadyInTeamPlaybook && (
           <button
             onClick={() => addToTeamPlaybook(pid)}
             style={{
-              width: '100%', background: '#e8a83e10', border: '1px solid #e8a83e40',
-              color: 'var(--accent)', borderRadius: 8, padding: '6px',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer', marginBottom: 10,
+              flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)',
+              color: 'var(--text)', borderRadius: 8, padding: '8px',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
             }}
           >
-            + Add to Team Playbook
+            + Add to Team
           </button>
-        ) : (
-          <div style={{ fontSize: 11, color: '#10b981', fontWeight: 700, marginBottom: 10 }}>
-            In Team Playbook
-          </div>
-        )
-      )}
-
-      {/* Edit button (strategies tab, team plays only) */}
-      {tab === 'strategies' && teamPlays.some(tp => tp.id === pid) && (
+        )}
+        
+        {/* Edit button now shows for BOTH library plays and team plays! */}
         <button
-          onClick={() => {
-            useEditorStore.getState().resetEdits(pid);
-            usePlaybookStore.getState().setIsEditing(true);
-          }}
+          onClick={handleEditClick}
           style={{
-            width: '100%', background: '#e8a83e10', border: '1px solid #e8a83e40',
-            color: 'var(--accent)', borderRadius: 8, padding: '7px',
-            fontSize: 13, fontWeight: 800, cursor: 'pointer', marginBottom: 10,
-            letterSpacing: 0.5,
+            flex: 1, background: '#e8a83e15', border: '1px solid #e8a83e40',
+            color: 'var(--accent)', borderRadius: 8, padding: '8px',
+            fontSize: 12, fontWeight: 900, cursor: 'pointer',
           }}
         >
-          Edit Play
+          Customize & Edit Play
         </button>
+      </div>
+
+      {tab === 'library' && isAlreadyInTeamPlaybook && (
+        <div style={{ fontSize: 11, color: '#10b981', fontWeight: 700, marginBottom: 12, textAlign: 'center', background: '#10b98110', padding: '6px', borderRadius: 6 }}>
+          ✓ Added to Team Playbook
+        </div>
       )}
 
       {/* Phase list */}
-      <div style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: 12 }}>
         {play.phases.map((ph, i) => (
           <button
             key={i}
@@ -141,25 +144,26 @@ export function PlayInfoDrawer() {
       </div>
 
       {/* Phase notes */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-        <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>
-          PHASE NOTES
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>
+          PHASE {displayPhIdx + 1} COACHING NOTES
         </div>
         {PD.map(pl => {
           const note = currentPhase.notes[pl.id];
           if (!note) return null;
           return (
-            <div key={pl.id} style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <div key={pl.id} style={{ marginBottom: 10, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <div style={{
-                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
                 background: pl.color,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 10, fontWeight: 900, color: '#000',
               }}>
-                {playerNames[pl.id] || pl.short}
+                {pl.short}
               </div>
-              <div style={{ fontSize: 13, color: '#ffffffcc', lineHeight: 1.5 }}>
-                {note}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 700, marginBottom: 2 }}>{playerNames[pl.id] || pl.role}</div>
+                <div style={{ fontSize: 13, color: '#ffffffcc', lineHeight: 1.4 }}>{note}</div>
               </div>
             </div>
           );

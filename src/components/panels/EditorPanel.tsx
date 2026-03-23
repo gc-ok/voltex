@@ -5,6 +5,7 @@ import { usePlaybookStore, getPlay } from '@/stores/usePlaybookStore';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { useTeamStore } from '@/stores/useTeamStore';
 import { PD } from '@/data/players';
+import { Play } from '@/data/types';
 
 export function EditorPanel() {
   const tab = usePlaybookStore(s => s.tab);
@@ -18,7 +19,8 @@ export function EditorPanel() {
   const isEditing = usePlaybookStore(s => s.isEditing);
   if (!isEditing) return null;
 
-  const play = getPlay(pid);
+  // Always use the editor store's getPlay so we see live dragging updates
+  const play = useEditorStore(s => s.getPlay)(pid);
   const phase = play.phases[phIdx] || play.phases[0];
   const isModified = mods[pid];
   const isSR = phase.label.includes('Serve Receive') && play.cat.includes('Serve Receive');
@@ -26,9 +28,25 @@ export function EditorPanel() {
 
   const handleSave = () => {
     const editedPlay = useEditorStore.getState().getPlay(pid);
-    useTeamStore.getState().updateTeamPlay(pid, {
-      phases: editedPlay.phases,
-    });
+    
+    if (isTeamPlay) {
+      // If it's already in the team playbook, just update it.
+      useTeamStore.getState().updateTeamPlay(pid, {
+        phases: editedPlay.phases,
+      });
+    } else {
+      // If it's a library play, add it to the team playbook WITH the new edits!
+      // 1. Add it to the store first to generate the `team_` ID.
+      useTeamStore.getState().addToTeamPlaybook(pid);
+      // 2. Immediately update that newly created team play with the dragged coordinates.
+      useTeamStore.getState().updateTeamPlay(`team_${pid}`, {
+        phases: editedPlay.phases,
+      });
+      // 3. Switch the user over to their team playbook to see it.
+      usePlaybookStore.getState().setTab('strategies');
+      usePlaybookStore.getState().setPid(`team_${pid}`);
+    }
+
     useEditorStore.getState().resetEdits(pid);
     usePlaybookStore.getState().setIsEditing(false);
   };
@@ -53,42 +71,43 @@ export function EditorPanel() {
       backdropFilter: 'blur(12px)',
       zIndex: 100,
     }}>
-      {/* Title */}
-      <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--accent)', letterSpacing: 1, marginBottom: 8 }}>
-        EDIT MODE
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--accent)', letterSpacing: 1 }}>
+          EDIT MODE
+        </div>
       </div>
-      <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 10 }}>
+      <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 12, lineHeight: 1.4 }}>
         {play.name}
       </div>
 
-      {/* Save / Discard (for team plays) */}
-      {isTeamPlay && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 1, background: 'var(--accent)', border: 'none',
-              color: '#000', borderRadius: 8, padding: '8px',
-              fontSize: 13, fontWeight: 900, cursor: 'pointer',
-            }}
-          >
-            Save
-          </button>
-          <button
-            onClick={handleDiscard}
-            style={{
-              flex: 1, background: 'none', border: '1px solid var(--border)',
-              color: 'var(--text-mid)', borderRadius: 8, padding: '8px',
-              fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            }}
-          >
-            Discard
-          </button>
-        </div>
-      )}
+      {/* Save / Discard (Now available for ALL plays!) */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        <button
+          onClick={handleSave}
+          style={{
+            flex: 2, background: 'var(--accent)', border: 'none',
+            color: '#000', borderRadius: 8, padding: '9px',
+            fontSize: 14, fontWeight: 900, cursor: 'pointer',
+          }}
+        >
+          {isTeamPlay ? 'Save Changes' : 'Save to My Playbook'}
+        </button>
+        <button
+          onClick={handleDiscard}
+          style={{
+            flex: 1, background: 'none', border: '1px solid var(--border)',
+            color: 'var(--text-mid)', borderRadius: 8, padding: '9px',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          Discard
+        </button>
+      </div>
 
-      {/* Phase selector pills */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8, letterSpacing: 0.5, fontWeight: 700 }}>
+        SELECT PHASE TO EDIT:
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 16 }}>
         {play.phases.map((ph, i) => (
           <button
             key={i}
@@ -98,11 +117,12 @@ export function EditorPanel() {
               color: i === phIdx ? '#000' : 'var(--text-dim)',
               border: `1px solid ${i === phIdx ? 'var(--accent)' : 'var(--border)'}`,
               borderRadius: 8,
-              padding: '4px 10px',
+              padding: '6px 10px',
               fontSize: 12,
               fontWeight: 700,
               whiteSpace: 'nowrap',
               cursor: 'pointer',
+              transition: 'all .15s',
             }}
           >
             {i + 1}. {ph.label}
@@ -111,38 +131,21 @@ export function EditorPanel() {
       </div>
 
       {/* Validator */}
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 16 }}>
         {violations.length === 0 ? (
           isSR ? (
-            <div style={{
-              background: '#10b98110',
-              border: '1px solid #10b98150',
-              borderRadius: 8,
-              padding: '9px 12px',
-              fontSize: 12,
-              color: '#10b981',
-              fontWeight: 700,
-            }}>
-              Valid formation
+            <div style={{ background: '#10b98110', border: '1px solid #10b98150', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: '#10b981', fontWeight: 700 }}>
+              ✓ Valid formation
             </div>
           ) : (
-            <div style={{ fontSize: 11, color: '#ffffff35' }}>
+            <div style={{ fontSize: 11, color: '#ffffff35', fontStyle: 'italic' }}>
               Validation active on serve receive phases.
             </div>
           )
         ) : (
           violations.map((v, i) => (
-            <div key={i} style={{
-              background: '#ef444410',
-              border: '1px solid #ef444450',
-              borderRadius: 8,
-              padding: '8px 11px',
-              fontSize: 12,
-              color: '#ef4444',
-              fontWeight: 700,
-              marginBottom: 5,
-            }}>
-              {v.msg}
+            <div key={i} style={{ background: '#ef444410', border: '1px solid #ef444450', borderRadius: 8, padding: '8px 11px', fontSize: 12, color: '#ef4444', fontWeight: 700, marginBottom: 5 }}>
+              ⚠ {v.msg}
             </div>
           ))
         )}
@@ -152,45 +155,35 @@ export function EditorPanel() {
       {isModified && (
         <button
           onClick={() => resetEdits(pid)}
-          style={{
-            width: '100%',
-            background: 'none',
-            border: '1px solid #ef444450',
-            color: '#ef4444',
-            borderRadius: 9,
-            padding: '8px',
-            fontSize: 12,
-            fontWeight: 700,
-            marginBottom: 12,
-            cursor: 'pointer',
-          }}
+          style={{ width: '100%', background: 'none', border: '1px solid #ef444450', color: '#ef4444', borderRadius: 9, padding: '8px', fontSize: 12, fontWeight: 700, marginBottom: 16, cursor: 'pointer' }}
         >
           Reset to Original
         </button>
       )}
 
       {/* Player legend */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-        <div style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>
-          PLAYERS
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>
+          PLAYERS ON COURT
         </div>
-        {PD.map(pl => (
-          <div key={pl.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <div style={{
-              width: 18, height: 18, borderRadius: '50%',
-              background: pl.color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 8, fontWeight: 900, color: '#000', flexShrink: 0,
-            }}>
-              {pl.short}
-            </div>
-            <span style={{ fontSize: 13, color: '#ffffffcc' }}>{pl.role}</span>
-          </div>
-        ))}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {PD.map(pl => {
+            // Only show players actually participating in this phase
+            if (!phase.pos[pl.id] || (phase.pos[pl.id]?.x === -1000)) return null;
+            return (
+              <div key={pl.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', background: pl.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 900, color: '#000', flexShrink: 0 }}>
+                  {pl.short}
+                </div>
+                <span style={{ fontSize: 12, color: '#ffffffcc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.role}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8, fontSize: 12, color: '#e8a83e80', lineHeight: 1.8 }}>
-        Drag players on court
+      <div style={{ background: '#e8a83e10', border: '1px solid #e8a83e30', borderRadius: 8, padding: '8px 10px', marginTop: 16, fontSize: 11, color: 'var(--accent)', fontWeight: 700, lineHeight: 1.5 }}>
+        Drag players on the court to edit their positions for Phase {phIdx + 1}.
       </div>
     </div>
   );

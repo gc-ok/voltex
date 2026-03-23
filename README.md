@@ -189,3 +189,78 @@ See `Volleyball_mvp_context.md` for the full roadmap. Next milestones:
 3. **RBAC** — Coach vs Player views, play assignments, view tracking
 4. **Animation Upgrade** — Bezier paths for realistic hitter approaches
 5. **Billing** — Stripe integration, seat-based subscription tiers
+
+
+---
+
+## Roadmap: What's Next
+
+### Phase 1.5: Technical Debt & UI Fixes (Immediate Next Steps)
+- [ ] **Fix Legacy Systems:** The `6-2` and `4-2` systems in `defaults.ts` and `plays.ts` need to be fully mapped to the new 7-player ID system to ensure they render correctly without TS errors.
+- [ ] **Modularize Validation:** The `validate.ts` logic relies on brittle string matching for phase labels. This needs to be converted to strict enums.
+- [ ] **Font & Coloring Consistency:** Do a final sweep to ensure all tooltips, panel headers, and empty states use the new athletic gold/navy theme consistently.
+
+### Phase 2: Polish & UX
+- [ ] Responsive layout testing (1280px+ target, then tablet)
+- [ ] Keyboard shortcuts (spacebar = play/pause, arrows = next/prev phase)
+- [ ] Transition animations for drawer open/close
+- [ ] Visual QA pass — side-by-side with original HTML to verify all 28 plays render identically
+
+### Phase 3: Authentication & Multi-Tenancy
+- [ ] NextAuth.js with Google OAuth provider
+- [ ] Supabase setup (Postgres + RLS)
+- [ ] User table: email, tenant_id, role
+- [ ] API routes for plays CRUD (replace static imports with DB queries)
+- [ ] Row Level Security policies for tenant isolation
+
+### Phase 4: RBAC & Player Portal
+- [ ] Role-based UI: Coach sees Edit button, Player sees read-only
+- [ ] "Highlight My Position" — player portal dims others, highlights their path
+- [ ] Assignment system: Coach assigns plays to specific players
+- [ ] View tracking: which players have reviewed their assignments
+
+### Phase 5: Advanced Animation
+- [ ] Bezier control points per player per phase (arced hitter approaches)
+- [ ] GSAP or Framer Motion integration for curved paths
+- [ ] Play-by-play mode: auto-pause between phases with narration
+
+### Phase 6: Billing & Launch
+- [ ] Stripe integration + webhook for seat management
+- [ ] Subscription tiers (see pricing below)
+- [ ] Onboarding flow for Club Directors
+- [ ] Landing page / marketing site
+
+---
+
+## Planned SaaS Architecture
+
+### Multi-Tenancy
+- Every record (plays, rosters, assignments) scoped to a `tenant_id` (Club or Team)
+- Team A can never access Team B's data
+- Row Level Security (RLS) enforced at DB level (Supabase/Postgres)
+
+### Role-Based Access Control (RBAC)
+| Role | Capabilities |
+|---|---|
+| Platform Admin | Full access, billing management |
+| Club Director | Create/manage teams, billing, user provisioning |
+| Coach | Create/edit plays, assign to players, view analytics |
+| Player | Read-only — view assigned plays, use quiz mode |
+
+### Authentication — Google OAuth
+- Offload identity entirely to Google
+- No passwords, no reset flows
+- Frictionless for school/athletic environments already on Google Workspace
+- Backend verifies Google-authenticated email against `Users` table, assigns `tenant_id` + `role`
+
+---
+
+## Subscription Model (Draft)
+
+| Tier | Target | Price (est.) | Seats |
+|---|---|---|---|
+| Club Starter | Small clubs (1–3 teams) | $49/mo | Up to 30 players |
+| Club Pro | Mid-size clubs (4–10 teams) | $149/mo | Up to 150 players |
+| Athletic Department | Schools/universities | $399/mo | Unlimited |
+
+Annual billing with a discount. Club Director controls seat allocation.

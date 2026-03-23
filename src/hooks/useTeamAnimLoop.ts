@@ -52,7 +52,7 @@ export function useTeamAnimLoop() {
       const totalTransitions = Math.max(1, (phases.length || 1) - 1);
 
       // ⏱️ Dynamic Speed: Force exactly 1.5 seconds per transition
-      const totalTime = totalTransitions * 1500;
+      const totalTime = totalTransitions * 2000;
       const speed = 100 / totalTime;
 
       let newProg = teamAnimProg + dt * speed;

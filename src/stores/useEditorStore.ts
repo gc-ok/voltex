@@ -3,6 +3,7 @@ import { Play, PlayerId, PositionMap } from '@/data/types';
 import { PLAYS } from '@/data/plays';
 import { CW, CH, PR } from '@/data/constants';
 import { validate, Violation } from '@/utils/validate';
+import { usePlaybookStore, resolvePlay } from './usePlaybookStore'; // Bring in resolvePlay to get adapted coordinates!
 
 interface EditorState {
   edits: Record<string, Play>;
@@ -25,7 +26,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   dragOff: { x: 0, y: 0 },
 
   getPlay: (id) => {
-    return get().edits[id] || PLAYS.find(p => p.id === id) || PLAYS[0];
+    // If we have an active edit, return that.
+    if (get().edits[id]) return get().edits[id];
+    
+    // Otherwise, return the adapted system play (so they edit from their actual team positions, not stock defaults)
+    return resolvePlay(id);
   },
 
   startDrag: (pid, offsetX, offsetY) => {
@@ -36,15 +41,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { edits, dragId, dragOff } = get();
     if (!dragId) return;
 
-    // Create edit copy if needed
+    // Create edit copy if needed. Use resolvePlay so we start from their adapted team positions!
     let editPlay = edits[playId];
     if (!editPlay) {
-      const original = PLAYS.find(p => p.id === playId);
+      const original = resolvePlay(playId);
       if (!original) return;
       editPlay = JSON.parse(JSON.stringify(original));
     }
 
     const phase = editPlay.phases[phIdx] || editPlay.phases[0];
+    if (!phase.pos[dragId]) return;
+
     phase.pos[dragId] = {
       x: Math.max(PR + 4, Math.min(CW - PR - 4, x - dragOff.x)),
       y: Math.max(PR + 4, Math.min(CH - PR - 4, y - dragOff.y)),

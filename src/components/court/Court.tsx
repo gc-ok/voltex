@@ -337,12 +337,13 @@ export function Court() {
     <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 12, minHeight: 0 }}>
       
       {/* INFORMATIVE OVERLAY FOR SETUP WIZARD PREVIEWS */}
-      {tab === 'setup' && teamAnimPlaying && (
+      {tab === 'setup' && !hideCourt && (
         <div style={{
-          position: 'absolute', top: '10%', left: '50%', zIndex: 10,
-          transform: 'translateX(-50%)',
-          pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 4,
-          alignItems: 'center'
+          position: 'absolute', top: '50%', left: '24px', zIndex: 10,
+          transform: 'translateY(-50%)',
+          pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 8,
+          alignItems: 'flex-start', // aligns text to the left
+          maxWidth: '250px' // prevents text from overlapping the court too much
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ 
