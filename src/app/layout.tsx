@@ -3,8 +3,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'VOLTEX — Visual Volleyball Playbook & Coaching Platform',
-    template: '%s | VOLTEX',
+    default: 'GC Volley — Visual Volleyball Playbook & Coaching Platform',
+    template: '%s | GC Volley',
   },
   description: 'Interactive volleyball playbook with animated plays, rotation validation, custom formations, coverage strategies, rally builder, and team quiz mode. Built for coaches at every level.',
   keywords: [
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
     'volleyball rally builder',
     'volleyball team management',
   ],
-  authors: [{ name: 'VOLTEX' }],
-  creator: 'VOLTEX',
-  publisher: 'VOLTEX',
+  authors: [{ name: 'GC Volley' }],
+  creator: 'GC Volley',
+  publisher: 'GC Volley',
   robots: {
     index: true,
     follow: true,
@@ -44,13 +44,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    siteName: 'VOLTEX',
-    title: 'VOLTEX — Visual Volleyball Playbook & Coaching Platform',
+    siteName: 'GC Volley',
+    title: 'GC Volley — Visual Volleyball Playbook & Coaching Platform',
     description: 'Animated volleyball playbook with rotation validation, custom formations, coverage strategies, and team quiz mode.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'VOLTEX — Visual Volleyball Playbook',
+    title: 'GC Volley — Visual Volleyball Playbook',
     description: 'Interactive animated volleyball playbook for coaches. Design plays, validate rotations, build rallies, and quiz your team.',
   },
   alternates: {

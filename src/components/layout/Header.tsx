@@ -33,7 +33,7 @@ export function Header() {
           fontSize: 18, fontWeight: 900, letterSpacing: 3,
           color: 'var(--text)',
         }}>
-          VOLTEX
+          GC Volley
         </span>
       </div>
 

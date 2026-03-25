@@ -247,7 +247,7 @@ export function SetupWizardPanel() {
       {setupStep === 0 && (
         <div className="wiz-anim-1">
           <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--text)', marginBottom: 8, lineHeight: 1.2 }}>
-            Welcome to Voltex! Let's answer a couple questions.
+            Welcome to GC Volley! Let's answer a couple questions.
           </div>
           <div className="wiz-anim-2" style={{ fontSize: 15, color: 'var(--text-dim)', marginBottom: 24, lineHeight: 1.5 }}>
             First, what's your team name? (You can always change this later).

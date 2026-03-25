@@ -36,7 +36,7 @@ export default function AppPage() {
         height: '100vh', background: 'var(--bg-deep)',
       }}>
         <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--accent)', letterSpacing: 3 }}>
-          VOLTEX
+          GC Volley
         </div>
       </div>
     );

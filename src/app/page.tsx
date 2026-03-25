@@ -4,7 +4,7 @@ import { LandingClient } from '@/components/landing/LandingClient';
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'VOLTEX',
+  name: 'GC Volley',
   applicationCategory: 'SportsApplication',
   operatingSystem: 'Web',
   description: 'Interactive volleyball playbook with animated plays, rotation validation, custom formations, coverage strategies, rally builder, and team quiz mode.',
@@ -28,7 +28,7 @@ const jsonLd = {
 const orgJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  name: 'VOLTEX',
+  name: 'GC Volley',
   description: 'Visual volleyball coaching platform',
 };
 

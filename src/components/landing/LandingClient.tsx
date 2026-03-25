@@ -67,7 +67,7 @@ export function LandingClient() {
         borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--accent)', letterSpacing: 2 }}>
-          VOLTEX
+          GC Volley
         </div>
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
           <a href="#features" style={{ color: 'var(--text-mid)', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>Features</a>
@@ -429,7 +429,7 @@ export function LandingClient() {
           padding: '16px 40px', borderRadius: 12, fontSize: 19, fontWeight: 900,
           textDecoration: 'none', letterSpacing: 0.5,
         }}>
-          Launch VOLTEX
+          Launch GC Volley
         </Link>
         <div style={{ marginTop: 20, fontSize: 13, color: 'var(--text-dim)' }}>
           Free to use. No account required.
@@ -445,7 +445,7 @@ export function LandingClient() {
         flexWrap: 'wrap', gap: 12,
       }}>
         <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--accent)', letterSpacing: 1 }}>
-          VOLTEX
+          GC Volley
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
           Visual volleyball coaching platform

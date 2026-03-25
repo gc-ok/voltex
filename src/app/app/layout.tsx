@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'VOLTEX — Volleyball Playbook',
+  title: 'GC Volley — Volleyball Playbook',
   description: 'Interactive volleyball playbook and rotation simulator. Build animated plays, validate formations, and quiz your team.',
 };
 

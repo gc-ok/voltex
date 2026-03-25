@@ -22,6 +22,7 @@ import { useAnimationLoop } from '@/hooks/useAnimationLoop';
 import { useQuizLoop } from '@/hooks/useQuizLoop';
 import { useTeamAnimLoop } from '@/hooks/useTeamAnimLoop';
 import { PlayerTooltip } from './PlayerTooltip';
+import { validateRotation } from '@/utils/validate'; // Removed getRotationLayout
 
 export function Court() {
   useAnimationLoop();
@@ -81,6 +82,7 @@ export function Court() {
   let ball: XY;
   let violatedIds = new Set<PlayerId>();
   let currentPhaseLabel = '';
+  let activeViolations: string[] = [];
 
   if (isTeam) {
     const key = rotKey(teamSystem, teamRotation);
@@ -131,6 +133,26 @@ export function Court() {
     positions = fallbackPlay.phases[0].pos;
     ball = fallbackPlay.phases[0].ball;
     currentPhaseLabel = fallbackPlay.phases[0].label || '';
+  }
+
+  // We only run rotation validation in the setup wizard during the pre-serve phase
+  const isPhaseOne = currentPhaseLabel.toLowerCase().includes('serve receive') || 
+                     currentPhaseLabel.toLowerCase().includes('pre-serve');
+
+  // Ensure validation ONLY runs if the animation is completely stopped at the start (prog = 0)
+  const isAnimationStopped = !teamAnimPlaying && teamAnimProg === 0;
+
+  if (tab === 'setup' && isPhaseOne && isAnimationStopped) {
+    const isServing = teamAnimScenario === 'serve';
+    
+    const rotationViolations = validateRotation(positions, teamRotation, isServing);
+    rotationViolations.forEach(v => {
+      violatedIds.add(v.ids[0]);
+      violatedIds.add(v.ids[1]);
+      activeViolations.push(v.msg); // 👈 NEW: Save the message for the UI
+    });
+  } else if (isEditing) {
+    violatedIds = new Set(editorViolations.flatMap(v => v.ids));
   }
 
   const getNote = useCallback((hoveredPid: PlayerId): string => {
@@ -342,8 +364,8 @@ export function Court() {
           position: 'absolute', top: '50%', left: '24px', zIndex: 10,
           transform: 'translateY(-50%)',
           pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 8,
-          alignItems: 'flex-start', // aligns text to the left
-          maxWidth: '250px' // prevents text from overlapping the court too much
+          alignItems: 'flex-start',
+          maxWidth: '300px' // Slightly wider to fit the error text nicely
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ 
@@ -356,10 +378,42 @@ export function Court() {
           <div style={{ 
             fontSize: 36, fontWeight: 900, color: '#fff', 
             textShadow: '0 2px 12px rgba(0,0,0,0.8)',
-            marginTop: 12, letterSpacing: 0.5
+            marginTop: 12, letterSpacing: 0.5, lineHeight: 1.1
           }}>
             {currentPhaseLabel}
           </div>
+
+          {/* 👇 NEW: ERROR ALERT BOX 👇 */}
+          {activeViolations.length > 0 && (
+            <div style={{
+              marginTop: 16,
+              background: 'rgba(220, 38, 38, 0.95)', // Semi-transparent bold red
+              border: '2px solid #f87171',
+              borderRadius: 8,
+              padding: '12px 16px',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              pointerEvents: 'auto' // Optional: Allows them to hover/click the box if needed later
+            }}>
+              <div style={{ 
+                fontWeight: 800, fontSize: 14, textTransform: 'uppercase', 
+                letterSpacing: 1, borderBottom: '1px solid rgba(255,255,255,0.3)', 
+                paddingBottom: 6, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6
+              }}>
+                ⚠️ Rotation Fault
+              </div>
+              {activeViolations.map((msg, i) => (
+                <div key={i} style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
+                  • {msg}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* 👆 END ERROR ALERT BOX 👆 */}
+
         </div>
       )}
 
