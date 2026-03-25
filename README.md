@@ -1,3 +1,8 @@
+Ah, I see what happened! The code blocks *inside* the README (like the bash commands and folder structure) prematurely closed the main code block. 
+
+Here is the entire README properly enclosed so you can copy it in one click:
+
+````markdown
 # VOLTEX — Interactive Volleyball Playbook
 
 VOLTEX is a web-based volleyball playbook engine built for coaches and players. It renders animated plays on an SVG court, validates serve-receive formations, and includes a quiz mode for player training.
@@ -53,7 +58,7 @@ Open http://localhost:3000
 
 ## Project Structure
 
-```
+```text
 voltex/
 ├── public/
 │   └── favicon.svg
@@ -70,32 +75,32 @@ voltex/
 │   ├── data/
 │   │   ├── types.ts                 # Core types: PlayerId, XY, Phase, Play, RotationDefaults, StrategyProfile, etc.
 │   │   ├── constants.ts             # Court dimensions (540×840), NET_Y, named positions (SET_TGT, BK_SL, etc.)
-│   │   ├── defaults.ts             # Factory defaults: ROTATION_LAYOUTS, DEFENSE_SCHEMAS, buildServePhases(), buildReceivePhases()
-│   │   ├── players.ts              # PD array — 6 player definitions (S, OP, MB, OH, RS, L) with colors
-│   │   ├── plays.ts                # PLAYS array — all 28 plays with phase data, ph() builder function
-│   │   ├── quiz.ts                 # QUIZ array — 15 multiple-choice questions tied to play IDs
-│   │   └── rallies.ts              # Rally definitions — multi-play sequences
+│   │   ├── defaults.ts              # Factory defaults: ROTATION_LAYOUTS, DEFENSE_SCHEMAS, buildServePhases(), buildReceivePhases()
+│   │   ├── players.ts               # PD array — 6 player definitions (S, OP, MB, OH, RS, L) with colors
+│   │   ├── plays.ts                 # PLAYS array — all 28 plays with phase data, ph() builder function
+│   │   ├── quiz.ts                  # QUIZ array — 15 multiple-choice questions tied to play IDs
+│   │   └── rallies.ts               # Rally definitions — multi-play sequences
 │   │
 │   ├── stores/
-│   │   ├── usePlaybookStore.ts     # UI state: tab, category, play ID, phase index, team animation state
-│   │   ├── useAnimationStore.ts    # Animation state: progress, playing, speed, trails, trail data
-│   │   ├── useEditorStore.ts       # Editor state: position edits, modifications, violations, drag state
-│   │   ├── useQuizStore.ts         # Quiz state: question index, selected answer, score, completion
-│   │   ├── useTeamStore.ts         # Team state: system, rotation, defense, player names, profiles, rotation defaults (persisted)
-│   │   └── useRallyStore.ts        # Rally state: active rally, step index, flattened phases
+│   │   ├── usePlaybookStore.ts      # UI state: tab, category, play ID, phase index, team animation state
+│   │   ├── useAnimationStore.ts     # Animation state: progress, playing, speed, trails, trail data
+│   │   ├── useEditorStore.ts        # Editor state: position edits, modifications, violations, drag state
+│   │   ├── useQuizStore.ts          # Quiz state: question index, selected answer, score, completion
+│   │   ├── useTeamStore.ts          # Team state: system, rotation, defense, player names, profiles, rotation defaults (persisted)
+│   │   └── useRallyStore.ts         # Rally state: active rally, step index, flattened phases
 │   │
 │   ├── hooks/
-│   │   ├── useAnimationLoop.ts     # requestAnimationFrame loop — increments progress, records trails
-│   │   ├── useQuizLoop.ts          # rAF loop for quiz — auto-loops play animation, resets at 100%
-│   │   └── useTeamAnimLoop.ts      # rAF loop for team animation — drives wizard walkthrough animations
+│   │   ├── useAnimationLoop.ts      # requestAnimationFrame loop — increments progress, records trails
+│   │   ├── useQuizLoop.ts           # rAF loop for quiz — auto-loops play animation, resets at 100%
+│   │   └── useTeamAnimLoop.ts       # rAF loop for team animation — drives wizard walkthrough animations
 │   │
 │   ├── utils/
-│   │   ├── ease.ts                 # Quadratic ease-in-out function
-│   │   ├── lerp.ts                 # Interpolates player + ball positions between phase keyframes
-│   │   ├── validate.ts             # Serve-receive overlap checker (depth + lateral rules)
-│   │   ├── svg.ts                  # Converts pointer events to SVG coordinate space
-│   │   ├── adaptPlay.ts           # Adapts system plays to team's base positions
-│   │   └── transitions.ts         # Transition animation utilities
+│   │   ├── ease.ts                  # Quadratic ease-in-out function
+│   │   ├── lerp.ts                  # Interpolates player + ball positions between phase keyframes
+│   │   ├── validate.ts              # Serve-receive overlap checker (depth + lateral rules)
+│   │   ├── svg.ts                   # Converts pointer events to SVG coordinate space
+│   │   ├── adaptPlay.ts             # Adapts system plays to team's base positions
+│   │   └── transitions.ts           # Transition animation utilities
 │   │
 │   └── components/
 │       ├── court/
@@ -121,8 +126,8 @@ voltex/
 │       │   ├── EditorPanel.tsx      # Editor overlay — phase selector, violation display, player legend
 │       │   ├── QuizPanel.tsx        # Quiz overlay — question, options, explanation, score, results screen
 │       │   ├── SetupWizardPanel.tsx # 5-step setup wizard with per-rotation animated walkthrough
-│       │   ├── TeamDefaultsPanel.tsx # My Team panel — system, defense, profiles, coverage, roster
-│       │   └── RallyBuilderPanel.tsx # Rally builder — chain plays into sequences
+│       │   ├── TeamDefaultsPanel.tsx# My Team panel — system, defense, profiles, coverage, roster
+│       │   └── RallyBuilderPanel.tsx# Rally builder — chain plays into sequences
 │       │
 │       └── controls/
 │           └── PlayControls.tsx     # Centered bar below court — play/pause, reset, speed buttons, trails toggle
@@ -132,135 +137,82 @@ voltex/
 └── package.json
 ```
 
-## State Architecture
-
-Six Zustand stores, each focused on a single concern. Animation loops read/write via `getState()` (imperative) to avoid triggering React re-renders on every frame. Team store uses `persist` middleware with `skipHydration` for SSR compatibility.
-
-| Store | Manages | Updated By |
-|---|---|---|
-| `usePlaybookStore` | tab, category, play ID, phase index, team animation state | User clicks (sidebar, header, phases), wizard |
-| `useAnimationStore` | progress, playing, speed, trails | rAF loop at 60fps, play controls |
-| `useEditorStore` | position edits, violations, drag state | Drag events on court, validator |
-| `useQuizStore` | question index, answer, score | Quiz panel interactions |
-| `useTeamStore` | system, rotation, defense type, rotation defaults, player names, profiles, coverage, team playbook | Setup wizard, My Team panel, court drag |
-| `useRallyStore` | active rally, step index, flattened phases | Rally builder panel |
-
-## Data Model
-
-### Rotation Defaults
-
-Each system (5-1, 6-2, 4-2) × rotation (1-6) has a `RotationDefaults` entry containing:
-- `serveReceive` — static positions for serve receive formation
-- `baseDefense` — static positions generated from `ROTATION_LAYOUTS` + `DEFENSE_SCHEMAS`
-- `baseOffense` — static positions for base offense
-- `servePhases` — 3-phase animated sequence: Pre-Serve → Ball Crosses Net → Base Defense
-- `receivePhases` — 5-phase animated sequence: Serve Receive → Pass Contact → Set Contact → Attack → Ball Over Net
-
-### Phase Generation
-
-- **Serve phases** are generated from legal pre-serve zone positions + defense templates. The server (determined by rotation: Rot1=S, Rot2=L, Rot3=RS, Rot4=OH, Rot5=MB, Rot6=OP) starts at baseline, transitions through serve contact, and team settles into base defense.
-- **Receive phases** are cloned from existing 51sr1–51sr6 play data (5 phases each with full position + ball + notes data).
-
-## Layout
-
-```
-┌─────────────────────────────────────────────────┐
-│  V  VOLTEX      Setup  My Team  Library  Quiz   │  Header
-├──────────┬──────────────────────────────────────┤
-│          │                    ┌────────────┐    │
-│  Play    │                    │ Context    │    │
-│  Library │     Court SVG      │ Panel      │    │
-│          │                    │ (overlay)  │    │
-│  [pills] │                    └────────────┘    │
-│  [plays] │                                      │
-├──────────┼──────────────────────────────────────┤
-│          │   ▶  ⏮  │ 0.5x 1x 1.5x 2x │ TRAILS │  Play Controls
-├──────────┴──────────────────────────────────────┤
-│  ● Phase 1 ────────●──── Phase 3 ●        48%  │  Timeline (when active)
-└─────────────────────────────────────────────────┘
-```
-
-## Roadmap
-
-See `Volleyball_mvp_context.md` for the full roadmap. Next milestones:
-
-1. **Polish** — Responsive layout, keyboard shortcuts, visual QA
-2. **Auth** — NextAuth.js + Google OAuth, Supabase for persistence
-3. **RBAC** — Coach vs Player views, play assignments, view tracking
-4. **Animation Upgrade** — Bezier paths for realistic hitter approaches
-5. **Billing** — Stripe integration, seat-based subscription tiers
-
-
----
-
 ## Roadmap: What's Next
 
-### Phase 1.5: Technical Debt & UI Fixes (Immediate Next Steps)
-- [ ] **Fix Legacy Systems:** The `6-2` and `4-2` systems in `defaults.ts` and `plays.ts` need to be fully mapped to the new 7-player ID system to ensure they render correctly without TS errors.
+### Phase 1.5: Technical Debt & Editor Upgrades (Immediate Next Steps)
+- [ ] **Draggable Ball Animation:** Update `useEditorStore` and `Court.tsx` to allow users to drag the ball token during edit mode to customize pass/set trajectories.
+- [ ] **Token Name Overrides:** Allow coaches to rename specific player tokens within an edited play (e.g., changing "OH1" to "Sarah").
+- [ ] **Play Versioning:** Allow saving multiple named versions/variations of a single edited play.
+- [x] **Fix Legacy Systems:** The `6-2` and `4-2` systems in `defaults.ts` and `plays.ts` need to be fully mapped to the new 7-player ID system to ensure they render correctly without TS errors.
 - [ ] **Modularize Validation:** The `validate.ts` logic relies on brittle string matching for phase labels. This needs to be converted to strict enums.
-- [ ] **Font & Coloring Consistency:** Do a final sweep to ensure all tooltips, panel headers, and empty states use the new athletic gold/navy theme consistently.
 
 ### Phase 2: Polish & UX
-- [ ] Responsive layout testing (1280px+ target, then tablet)
-- [ ] Keyboard shortcuts (spacebar = play/pause, arrows = next/prev phase)
-- [ ] Transition animations for drawer open/close
-- [ ] Visual QA pass — side-by-side with original HTML to verify all 28 plays render identically
+- [ ] **Prioritize UI/UX:** Responsive layout testing (1280px+ target, then tablet).
+- [ ] Keyboard shortcuts (spacebar = play/pause, arrows = next/prev phase).
+- [ ] Transition animations for drawer open/close.
+- [ ] Visual QA pass — side-by-side with original HTML to verify all 28 plays render identically.
+- [ ] Font & Coloring Consistency: Final sweep to ensure all tooltips, panel headers, and empty states use the new athletic gold/navy theme consistently.
 
-### Phase 3: Authentication & Multi-Tenancy
-- [ ] NextAuth.js with Google OAuth provider
-- [ ] Supabase setup (Postgres + RLS)
-- [ ] User table: email, tenant_id, role
-- [ ] API routes for plays CRUD (replace static imports with DB queries)
-- [ ] Row Level Security policies for tenant isolation
+### Phase 3: Authentication, Multi-Tenancy & Audit Logs
+- [ ] NextAuth.js with Google OAuth provider.
+- [ ] Supabase setup (Postgres + RLS).
+- [ ] User table: email, tenant_id, role.
+- [ ] API routes for plays CRUD (replace static imports with DB queries).
+- [ ] **Multi-Team Support:** Logic to handle Free Tier (1 team limit) vs Paid Tier (Unlimited teams).
+- [ ] **Multi-Coach Support & Logs:** Allow multiple coach accounts per team and implement an Audit Log (track who made edits and when).
+- [ ] Row Level Security policies for tenant isolation.
 
-### Phase 4: RBAC & Player Portal
-- [ ] Role-based UI: Coach sees Edit button, Player sees read-only
-- [ ] "Highlight My Position" — player portal dims others, highlights their path
-- [ ] Assignment system: Coach assigns plays to specific players
-- [ ] View tracking: which players have reviewed their assignments
+### Phase 4: RBAC, Player Analytics & Custom Quizzes
+- [ ] **Role-based UI:** Coach sees Edit button, Player sees read-only.
+- [ ] "Highlight My Position" — player portal dims others, highlights their path.
+- [ ] Assignment system: Coach assigns plays to specific players.
+- [ ] **Custom Quiz Builder:** Allow coaches to create their own multiple-choice scenarios.
+- [ ] **Engagement Analytics:** Dashboard to see which players logged in, when they logged in, how often they use the app, and their quiz scores over the past week.
 
 ### Phase 5: Advanced Animation
-- [ ] Bezier control points per player per phase (arced hitter approaches)
-- [ ] GSAP or Framer Motion integration for curved paths
-- [ ] Play-by-play mode: auto-pause between phases with narration
+- [ ] Bezier control points per player per phase (arced hitter approaches).
+- [ ] GSAP or Framer Motion integration for curved paths.
+- [ ] Play-by-play mode: auto-pause between phases with narration.
 
 ### Phase 6: Billing & Launch
-- [ ] Stripe integration + webhook for seat management
-- [ ] Subscription tiers (see pricing below)
-- [ ] Onboarding flow for Club Directors
-- [ ] Landing page / marketing site
+- [ ] Stripe integration + webhook for seat management.
+- [ ] Subscription tiers (see pricing below).
+- [ ] Onboarding flow for Club Directors.
+- [ ] Landing page / marketing site.
 
 ---
 
 ## Planned SaaS Architecture
 
 ### Multi-Tenancy
-- Every record (plays, rosters, assignments) scoped to a `tenant_id` (Club or Team)
-- Team A can never access Team B's data
-- Row Level Security (RLS) enforced at DB level (Supabase/Postgres)
+- Every record (plays, rosters, assignments) scoped to a `tenant_id` (Club or Team).
+- Team A can never access Team B's data.
+- Free accounts restricted to a single team instance. Paid accounts can manage multiple teams under one Club Director.
+- Row Level Security (RLS) enforced at DB level (Supabase/Postgres).
 
 ### Role-Based Access Control (RBAC)
 | Role | Capabilities |
 |---|---|
 | Platform Admin | Full access, billing management |
 | Club Director | Create/manage teams, billing, user provisioning |
-| Coach | Create/edit plays, assign to players, view analytics |
-| Player | Read-only — view assigned plays, use quiz mode |
+| Coach | Create/edit plays, create custom quizzes, assign to players, view analytics, view audit logs |
+| Player | Read-only — view assigned plays, take quizzes, view personal analytics |
 
 ### Authentication — Google OAuth
-- Offload identity entirely to Google
-- No passwords, no reset flows
-- Frictionless for school/athletic environments already on Google Workspace
-- Backend verifies Google-authenticated email against `Users` table, assigns `tenant_id` + `role`
+- Offload identity entirely to Google.
+- No passwords, no reset flows.
+- Frictionless for school/athletic environments already on Google Workspace.
+- Backend verifies Google-authenticated email against `Users` table, assigns `tenant_id` + `role`.
 
 ---
 
 ## Subscription Model (Draft)
 
-| Tier | Target | Price (est.) | Seats |
+| Tier | Target | Price (est.) | Features |
 |---|---|---|---|
-| Club Starter | Small clubs (1–3 teams) | $49/mo | Up to 30 players |
-| Club Pro | Mid-size clubs (4–10 teams) | $149/mo | Up to 150 players |
-| Athletic Department | Schools/universities | $399/mo | Unlimited |
+| Basic (Free) | Individual Coach / Rec | Free | 1 Team, Standard library, No analytics |
+| Club Starter | Small clubs (1–3 teams) | $49/mo | Up to 30 players, custom quizzes, analytics |
+| Club Pro | Mid-size clubs (4–10 teams) | $149/mo | Up to 150 players, multi-coach audit logs |
+| Athletic Department | Schools/universities | $399/mo | Unlimited teams, SSO integration |
 
 Annual billing with a discount. Club Director controls seat allocation.

@@ -306,7 +306,29 @@ export function Court() {
     const isQuizAnim = curTab === 'quiz' && !useQuizStore.getState().qDone;
 
     let curPos: PositionMap;
-    if (curIsAnimating) {
+    if (curTab === 'myteam' || curTab === 'setup') {
+      const pbState = usePlaybookStore.getState();
+      const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
+      const tRd = useTeamStore.getState().rotationDefaults[tKey];
+      
+      if (curTab === 'setup' && pbState.teamAnimScenario) {
+        const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];
+        if (tPhases.length > 0) {
+          curPos = lerp(pbState.teamAnimProg, tPhases).pos;
+        } else {
+          curPos = useTeamStore.getState().getCurrentPositions();
+        }
+      } else if (pbState.teamAnimProg > 0 || pbState.teamAnimPlaying) {
+        const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];
+        if (tPhases.length > 0) {
+          curPos = lerp(pbState.teamAnimProg, tPhases).pos;
+        } else {
+          curPos = useTeamStore.getState().getCurrentPositions();
+        }
+      } else {
+        curPos = useTeamStore.getState().getCurrentPositions();
+      }
+    } else if (curIsAnimating) {
       curPos = lerp(curProg, getPlay(curPid).phases).pos;
     } else if (isQuizAnim) {
       const q = QUIZ[useQuizStore.getState().qIdx];

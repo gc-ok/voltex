@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { usePlaybookStore, getPlay } from '@/stores/usePlaybookStore';
+import { usePlaybookStore } from '@/stores/usePlaybookStore';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { useTeamStore } from '@/stores/useTeamStore';
 import { PD } from '@/data/players';
-import { Play } from '@/data/types';
 
 export function EditorPanel() {
+  // 1. ALL HOOKS MUST BE AT THE TOP
   const tab = usePlaybookStore(s => s.tab);
   const pid = usePlaybookStore(s => s.pid);
   const phIdx = usePlaybookStore(s => s.phIdx);
@@ -15,19 +15,25 @@ export function EditorPanel() {
   const violations = useEditorStore(s => s.violations);
   const mods = useEditorStore(s => s.mods);
   const resetEdits = useEditorStore(s => s.resetEdits);
-
   const isEditing = usePlaybookStore(s => s.isEditing);
+  
+  // 🚨 THE FIX: Moved this hook call above the early return!
+  const getEditorPlay = useEditorStore(s => s.getPlay);
+
+  // 2. NOW WE CAN SAFELY RETURN EARLY
   if (!isEditing) return null;
 
-  // Always use the editor store's getPlay so we see live dragging updates
-  const play = useEditorStore(s => s.getPlay)(pid);
+  // 3. REGULAR VARIABLES & DERIVED STATE (No hooks down here)
+  const play = getEditorPlay(pid);
+  if (!play) return null; // Safety fallback just in case the ID is invalid
+  
   const phase = play.phases[phIdx] || play.phases[0];
   const isModified = mods[pid];
   const isSR = phase.label.includes('Serve Receive') && play.cat.includes('Serve Receive');
   const isTeamPlay = pid.startsWith('team_');
 
   const handleSave = () => {
-    const editedPlay = useEditorStore.getState().getPlay(pid);
+    const editedPlay = getEditorPlay(pid);
     
     if (isTeamPlay) {
       // If it's already in the team playbook, just update it.
@@ -47,12 +53,12 @@ export function EditorPanel() {
       usePlaybookStore.getState().setPid(`team_${pid}`);
     }
 
-    useEditorStore.getState().resetEdits(pid);
+    resetEdits(pid);
     usePlaybookStore.getState().setIsEditing(false);
   };
 
   const handleDiscard = () => {
-    useEditorStore.getState().resetEdits(pid);
+    resetEdits(pid);
     usePlaybookStore.getState().setIsEditing(false);
   };
 
@@ -80,7 +86,7 @@ export function EditorPanel() {
         {play.name}
       </div>
 
-      {/* Save / Discard (Now available for ALL plays!) */}
+      {/* Save / Discard */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
         <button
           onClick={handleSave}
