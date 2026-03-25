@@ -1,18 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* Swapped to standard Inter for readability, and standard Barlow for headers */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow:wght@700;900&display=swap');
 
 :root {
-  --bg-deep: #080f1e;
-  --bg-panel: #0a1428;
-  --bg-card: #0d1e3a;
-  --border: #1e3055;
-  --border-hover: #2e4875;
-  --accent: #e8a83e;
-  --accent-dim: #e8a83e60;
-  --text: #ffffff;
-  --text-dim: #ffffff70;
-  --text-mid: #ffffffcc;
+  /* Premium Matte Dark Theme */
+  --bg-deep: #0f172a;   /* Very dark slate for the main background */
+  --bg-panel: #1e293b;  /* Slightly lighter slate for panels and sidebars */
+  --bg-card: #334155;   /* Lighter slate for inputs and cards */
+
+  /* Clean, subtle borders */
+  --border: #475569;
+  --border-hover: #64748b;
+
+  /* Professional Athletic Gold */
+  --accent: #d4af37;
+  --accent-dim: rgba(212, 175, 55, 0.2);
+
+  /* High-contrast, readable text */
+  --text: #f8fafc;       /* Crisp white for primary text */
+  --text-mid: #cbd5e1;   /* Light gray for secondary text */
+  --text-dim: #94a3b8;   /* Muted gray for labels */
+
   --sidebar-w: 216px;
-  --header-h: 46px;
+  --header-h: 56px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -20,14 +29,52 @@
 html, body {
   width: 100%; height: 100%;
   background: var(--bg-deep);
-  font-family: 'Barlow Condensed', sans-serif;
+  /* Use Inter as the default for maximum readability */
+  font-family: 'Inter', sans-serif; 
   color: var(--text);
+  -webkit-font-smoothing: antialiased; /* Makes text look sharper */
+}
+
+/* Use the athletic font specifically for big numbers or headers if you want */
+h1, h2, h3, .athletic-header {
+  font-family: 'Barlow', sans-serif;
+}
+
+/* Force all form elements to inherit the clean Inter font */
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
 }
 
 button {
   outline: none;
-  font-family: 'Barlow Condensed', sans-serif;
   cursor: pointer;
+}
+
+/* Modern dark styling for select dropdowns */
+select {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Subtle focus state instead of a neon glow */
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+/* Tone down label colors so they don't scream at the user */
+label {
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 0.875rem; /* 14px */
 }
 
 ::-webkit-scrollbar { width: 4px; }
@@ -37,12 +84,14 @@ input[type=range] {
   -webkit-appearance: none; appearance: none;
   background: transparent; cursor: pointer; width: 100%;
 }
+
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px; height: 14px; border-radius: 50%;
   background: var(--accent); margin-top: -6px;
-  box-shadow: 0 0 8px #e8a83e60;
+  /* Removed the glowing box-shadow here to kill the neon vibe */
 }
+
 input[type=range]::-webkit-slider-runnable-track {
   height: 3px; background: var(--border); border-radius: 2px;
 }

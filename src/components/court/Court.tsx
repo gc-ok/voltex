@@ -363,57 +363,62 @@ export function Court() {
         <div style={{
           position: 'absolute', top: '50%', left: '24px', zIndex: 10,
           transform: 'translateY(-50%)',
-          pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 8,
+          pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 10,
           alignItems: 'flex-start',
-          maxWidth: '300px' // Slightly wider to fit the error text nicely
+          maxWidth: '320px' 
         }}>
+          {/* Top Badge: Previewing Rotation */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ 
               background: 'var(--accent)', color: '#000', 
-              padding: '6px 12px', borderRadius: 6, fontWeight: 900, fontSize: 18 
+              padding: '6px 14px', borderRadius: 6, fontWeight: 800, fontSize: 16,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
             }}>
               Previewing {teamRotation ? `Rotation ${teamRotation}` : 'Play'}
             </div>
           </div>
+
+          {/* Phase Label - Hardcoded hex colors for guaranteed contrast */}
           <div style={{ 
-            fontSize: 36, fontWeight: 900, color: '#fff', 
-            textShadow: '0 2px 12px rgba(0,0,0,0.8)',
-            marginTop: 12, letterSpacing: 0.5, lineHeight: 1.1
+            fontSize: 28, fontWeight: 900, color: '#f8fafc', 
+            background: '#0f172a', // Hardcoded matte slate background
+            padding: '10px 20px', borderRadius: 8,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+            border: '1px solid #475569', // Hardcoded subtle border
+            letterSpacing: 0.5, lineHeight: 1.1
           }}>
             {currentPhaseLabel}
           </div>
 
-          {/* 👇 NEW: ERROR ALERT BOX 👇 */}
+          {/* ERROR ALERT BOX */}
           {activeViolations.length > 0 && (
             <div style={{
-              marginTop: 16,
-              background: 'rgba(220, 38, 38, 0.95)', // Semi-transparent bold red
-              border: '2px solid #f87171',
+              marginTop: 8,
+              background: '#7f1d1d', // Deep matte red instead of bright neon red
+              border: '1px solid #ef4444',
               borderRadius: 8,
               padding: '12px 16px',
               color: 'white',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
               display: 'flex',
               flexDirection: 'column',
               gap: 6,
-              pointerEvents: 'auto' // Optional: Allows them to hover/click the box if needed later
+              pointerEvents: 'auto'
             }}>
               <div style={{ 
                 fontWeight: 800, fontSize: 14, textTransform: 'uppercase', 
-                letterSpacing: 1, borderBottom: '1px solid rgba(255,255,255,0.3)', 
+                letterSpacing: 1, borderBottom: '1px solid rgba(255,255,255,0.2)', 
                 paddingBottom: 6, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6
               }}>
                 ⚠️ Rotation Fault
               </div>
               {activeViolations.map((msg, i) => (
-                <div key={i} style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
+                <div key={i} style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4, color: '#fca5a5' }}>
                   • {msg}
                 </div>
               ))}
             </div>
           )}
-          {/* 👆 END ERROR ALERT BOX 👆 */}
-
         </div>
       )}
 
@@ -461,11 +466,14 @@ export function Court() {
           {/* OFFENSIVE PLAY OVERLAY - HIDDEN DURING SETUP */}
           {currentPhaseLabel === 'OFFENSIVE PLAY' && tab !== 'setup' && (
             <g style={{ pointerEvents: 'none' }}>
-              <rect x="0" y="0" width={CW} height={CH} fill="#0a1428" />
-              <text x={CW / 2} y={CH / 2} fill="var(--accent)" fontSize="48" fontWeight="900" textAnchor="middle" alignmentBaseline="middle" letterSpacing="2" style={{ textShadow: '0px 4px 12px rgba(0,0,0,0.8)', animation: 'pulse 1.5s infinite alternate' }}>
+              {/* Clean dark slate overlay with 85% opacity */}
+              <rect x="0" y="0" width={CW} height={CH} fill="rgba(15, 23, 42, 0.85)" />
+              
+              <text x={CW / 2} y={CH / 2} fill="#d4af37" fontSize="48" fontWeight="900" textAnchor="middle" alignmentBaseline="middle" letterSpacing="2" style={{ textShadow: '0px 2px 4px rgba(0,0,0,0.5)' }}>
                 OFFENSIVE PLAY
               </text>
-              <text x={CW / 2} y={(CH / 2) + 40} fill="#ffffff" fontSize="16" fontWeight="700" textAnchor="middle" alignmentBaseline="middle" style={{ textShadow: '0px 2px 8px rgba(0,0,0,0.8)' }}>
+              
+              <text x={CW / 2} y={(CH / 2) + 40} fill="#f8fafc" fontSize="18" fontWeight="600" textAnchor="middle" alignmentBaseline="middle" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.5)' }}>
                 Ball crosses net → Transitioning to base
               </text>
             </g>

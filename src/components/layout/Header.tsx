@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { usePlaybookStore } from '@/stores/usePlaybookStore';
 import { useTeamStore } from '@/stores/useTeamStore';
 
@@ -19,18 +20,19 @@ export function Header() {
       gap: 12,
       flexShrink: 0,
     }}>
-      {/* Logo */}
+      {/* Left Side: Custom Logo + Text */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: 6,
-          background: 'var(--accent)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 15, fontWeight: 900, color: '#000',
-        }}>
-          V
-        </div>
+        <Image 
+          src="/logo.png" // Ensure logo.png is in your public/ folder
+          alt="GC Volley Logo" 
+          width={32} 
+          height={32} 
+          style={{ objectFit: 'contain' }} 
+        />
         <span style={{
-          fontSize: 18, fontWeight: 900, letterSpacing: 3,
+          fontSize: 18, 
+          fontWeight: 700, 
+          letterSpacing: 1, 
           color: 'var(--text)',
         }}>
           GC Volley
@@ -39,7 +41,7 @@ export function Header() {
 
       <div style={{ flex: 1 }} />
 
-      {/* Team name (clickable → setup) */}
+      {/* Right Side: Team Button */}
       <button
         onClick={() => setTab('setup')}
         style={{
@@ -48,9 +50,8 @@ export function Header() {
           color: 'var(--accent)',
           borderRadius: 8,
           padding: '5px 14px',
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: 0.5,
+          fontSize: 14,
+          fontWeight: 600,
           cursor: 'pointer',
           transition: 'all .15s',
         }}
