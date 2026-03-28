@@ -142,6 +142,11 @@ voltex/
 ### Phase 1.5: Technical Debt & Editor Upgrades (Immediate Next Steps)
 - [ ] **Draggable Ball Animation:** Update `useEditorStore` and `Court.tsx` to allow users to drag the ball token during edit mode to customize pass/set trajectories.
 - [ ] **Token Name Overrides:** Allow coaches to rename specific player tokens within an edited play (e.g., changing "OH1" to "Sarah").
+
+Also want to Add in the ability for the caoaches to make their own quizzes... maybe based on plays, on pahses of plays... on offensive... questions of where does OH go? etc. Very specific... or generic. User ca pick a play and ask, why do we do X here? Etc.
+
+Eventually could be If blockers are here, what do we do.... if blockers are here, where do we hit? etc
+
 - [ ] **Play Versioning:** Allow saving multiple named versions/variations of a single edited play.
 - [x] **Fix Legacy Systems:** The `6-2` and `4-2` systems in `defaults.ts` and `plays.ts` need to be fully mapped to the new 7-player ID system to ensure they render correctly without TS errors.
 - [ ] **Modularize Validation:** The `validate.ts` logic relies on brittle string matching for phase labels. This needs to be converted to strict enums.

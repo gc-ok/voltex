@@ -1,9 +1,8 @@
 import { create } from 'zustand';
 import { Play, PlayerId, PositionMap } from '@/data/types';
-import { PLAYS } from '@/data/plays';
-import { CW, CH, PR, BR } from '@/data/constants'; 
+import { CW, CH, PR, BR } from '@/data/constants';
 import { validate, Violation } from '@/utils/validate';
-import { usePlaybookStore, resolvePlay } from './usePlaybookStore';
+import { resolvePlay } from './usePlaybookStore';
 
 type DragTarget = PlayerId | 'BALL';
 
@@ -11,13 +10,18 @@ interface EditorState {
   edits: Record<string, Play>;
   mods: Record<string, boolean>;
   violations: Violation[];
-  dragId: DragTarget | null; 
+  dragId: DragTarget | null;
   dragOff: { x: number; y: number };
   getPlay: (id: string) => Play;
-  startDrag: (pid: DragTarget, offsetX: number, offsetY: number) => void; 
+  startDrag: (pid: DragTarget, offsetX: number, offsetY: number) => void;
   doDrag: (x: number, y: number, playId: string, phIdx: number) => void;
   endDrag: () => void;
   resetEdits: (id: string) => void;
+  
+  // 🚨 NEW Text Edit Functions
+  updatePhaseLabel: (text: string, playId: string, phIdx: number) => void;
+  updateNote: (pid: string, text: string, playId: string, phIdx: number) => void;
+  updatePlayerName: (pid: string, name: string, playId: string) => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -46,7 +50,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (!original) return;
       editPlay = JSON.parse(JSON.stringify(original));
     } else {
-      // 🚨 FIX: Shallow clone the play and phases so React detects the change instantly
+      // Shallow clone to trigger React re-renders for ball dragging
       editPlay = { ...editPlay };
       editPlay.phases = [...editPlay.phases];
       editPlay.phases[phIdx] = { ...editPlay.phases[phIdx] };
@@ -87,4 +91,28 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     delete newMods[id];
     set({ edits: newEdits, mods: newMods, violations: [] });
   },
+
+  // 🚨 NEW TEXT MUTATORS
+  updatePhaseLabel: (text, playId, phIdx) => {
+    const { edits } = get();
+    let editPlay = edits[playId] ? { ...edits[playId] } : JSON.parse(JSON.stringify(resolvePlay(playId)));
+    editPlay.phases = [...editPlay.phases];
+    editPlay.phases[phIdx] = { ...editPlay.phases[phIdx], label: text };
+    set({ edits: { ...edits, [playId]: editPlay }, mods: { ...get().mods, [playId]: true } });
+  },
+
+  updateNote: (pid, text, playId, phIdx) => {
+    const { edits } = get();
+    let editPlay = edits[playId] ? { ...edits[playId] } : JSON.parse(JSON.stringify(resolvePlay(playId)));
+    editPlay.phases = [...editPlay.phases];
+    editPlay.phases[phIdx] = { ...editPlay.phases[phIdx], notes: { ...editPlay.phases[phIdx].notes, [pid]: text } };
+    set({ edits: { ...edits, [playId]: editPlay }, mods: { ...get().mods, [playId]: true } });
+  },
+
+  updatePlayerName: (pid, name, playId) => {
+    const { edits } = get();
+    let editPlay = edits[playId] ? { ...edits[playId] } : JSON.parse(JSON.stringify(resolvePlay(playId)));
+    editPlay.playerNames = { ...editPlay.playerNames, [pid]: name };
+    set({ edits: { ...edits, [playId]: editPlay }, mods: { ...get().mods, [playId]: true } });
+  }
 }));

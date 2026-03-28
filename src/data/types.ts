@@ -31,6 +31,7 @@ export interface Play {
   name: string;
   desc: string;
   phases: Phase[];
+  playerNames?: Partial<Record<string, string>>; // 👈 NEW: Play-specific name overrides
 }
 
 export interface QuizQuestion {

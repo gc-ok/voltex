@@ -159,7 +159,11 @@ export function Court() {
   const getNote = useCallback((hoveredPid: PlayerId): string => {
     const st = usePlaybookStore.getState();
     const an = useAnimationStore.getState();
-    const curPlay = getPlay(st.pid);
+    
+    // 👈 Read from edits if editing, else use saved play
+    const isEd = st.isEditing;
+    const curPlay = isEd ? (useEditorStore.getState().edits[st.pid] || getPlay(st.pid)) : getPlay(st.pid);
+    
     const curIsAnimating = (st.tab === 'library' || st.tab === 'strategies') && (an.playing || an.prog > 0);
 
     if (curIsAnimating) {
@@ -486,6 +490,11 @@ export function Court() {
           {PD.map(pl => {
             const p = positions[pl.id];
             if (!p) return null;
+            
+            // 👈 Read the play-specific name override, fallback to the Team Roster name
+            const currentPlayObj = isEditing ? (currentEditPlay || getPlay(pid)) : getPlay(pid);
+            const displayName = currentPlayObj?.playerNames?.[pl.id] || playerNames[pl.id];
+
             return (
               <PlayerToken
                 key={pl.id}
@@ -494,7 +503,7 @@ export function Court() {
                 y={p.y}
                 isAnimating={isAnimating || isQuizAnimating}
                 violated={violatedIds.has(pl.id)}
-                displayName={playerNames[pl.id]}
+                displayName={displayName}
               />
             );
           })}

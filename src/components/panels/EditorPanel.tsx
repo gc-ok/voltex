@@ -1,13 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react'; // 👈 Added useState
 import { usePlaybookStore } from '@/stores/usePlaybookStore';
 import { useEditorStore } from '@/stores/useEditorStore';
 import { useTeamStore } from '@/stores/useTeamStore';
 import { PD } from '@/data/players';
+import { PlayerId } from '@/data/types'; // 👈 Imported PlayerId
 
 export function EditorPanel() {
-  // 1. ALL HOOKS MUST BE AT THE TOP
   const tab = usePlaybookStore(s => s.tab);
   const pid = usePlaybookStore(s => s.pid);
   const phIdx = usePlaybookStore(s => s.phIdx);
@@ -15,10 +15,17 @@ export function EditorPanel() {
   const violations = useEditorStore(s => s.violations);
   const mods = useEditorStore(s => s.mods);
   const resetEdits = useEditorStore(s => s.resetEdits);
-  const isEditing = usePlaybookStore(s => s.isEditing);
   
-  // 🚨 THE FIX: Moved this hook call above the early return!
+  // 👈 NEW Editor Mutators
+  const updatePhaseLabel = useEditorStore(s => s.updatePhaseLabel);
+  const updateNote = useEditorStore(s => s.updateNote);
+  const updatePlayerName = useEditorStore(s => s.updatePlayerName);
+
+  const isEditing = usePlaybookStore(s => s.isEditing);
   const getEditorPlay = useEditorStore(s => s.getPlay);
+  
+  // 👈 NEW Local state for the selected player to edit text
+  const [selPid, setSelPid] = useState<PlayerId | null>(null);
 
   // 2. NOW WE CAN SAFELY RETURN EARLY
   if (!isEditing) return null;
@@ -39,6 +46,7 @@ export function EditorPanel() {
       // If it's already in the team playbook, just update it.
       useTeamStore.getState().updateTeamPlay(pid, {
         phases: editedPlay.phases,
+        playerNames: editedPlay.playerNames,
       });
     } else {
       // If it's a library play, add it to the team playbook WITH the new edits!
@@ -47,6 +55,7 @@ export function EditorPanel() {
       // 2. Immediately update that newly created team play with the dragged coordinates.
       useTeamStore.getState().updateTeamPlay(`team_${pid}`, {
         phases: editedPlay.phases,
+        playerNames: editedPlay.playerNames,
       });
       // 3. Switch the user over to their team playbook to see it.
       usePlaybookStore.getState().setTab('strategies');
@@ -117,7 +126,7 @@ export function EditorPanel() {
         {play.phases.map((ph, i) => (
           <button
             key={i}
-            onClick={() => setPhIdx(i)}
+            onClick={() => { setPhIdx(i); setSelPid(null); }}
             style={{
               background: i === phIdx ? 'var(--accent)' : 'var(--bg-card)',
               color: i === phIdx ? '#000' : 'var(--text-dim)',
@@ -167,26 +176,49 @@ export function EditorPanel() {
         </button>
       )}
 
-      {/* Player legend */}
+      {/* Player legend - NOW CLICKABLE */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
         <div style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 700, letterSpacing: 1, marginBottom: 8 }}>
-          PLAYERS ON COURT
+          PLAYERS ON COURT (CLICK TO EDIT)
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {PD.map(pl => {
-            // Only show players actually participating in this phase
             if (!phase.pos[pl.id] || (phase.pos[pl.id]?.x === -1000)) return null;
+            const isSel = selPid === pl.id;
             return (
-              <div key={pl.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div key={pl.id} onClick={() => setSelPid(isSel ? null : pl.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: isSel ? '#ffffff10' : 'transparent', padding: '4px', borderRadius: 6 }}>
                 <div style={{ width: 18, height: 18, borderRadius: '50%', background: pl.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 900, color: '#000', flexShrink: 0 }}>
                   {pl.short}
                 </div>
-                <span style={{ fontSize: 12, color: '#ffffffcc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.role}</span>
+                <span style={{ fontSize: 12, color: isSel ? 'var(--accent)' : '#ffffffcc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isSel ? 700 : 400 }}>
+                  {play.playerNames?.[pl.id] || pl.role}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* 👈 NEW: Player Name & Tooltip Edit Form */}
+      {selPid && (
+        <div style={{ marginTop: 12, background: '#0f172a', padding: 12, borderRadius: 8, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, marginBottom: 4 }}>RENAME PLAYER:</div>
+          <input 
+            type="text" 
+            value={play.playerNames?.[selPid] || ''} 
+            onChange={e => updatePlayerName(selPid, e.target.value, pid)}
+            placeholder={`e.g. Sarah`}
+            style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'white', padding: '6px 8px', borderRadius: 6, fontSize: 13, marginBottom: 10, outline: 'none' }}
+          />
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 700, marginBottom: 4 }}>TOOLTIP NOTE (PHASE {phIdx + 1}):</div>
+          <textarea 
+            value={phase.notes?.[selPid] || ''} 
+            onChange={e => updateNote(selPid, e.target.value, pid, phIdx)}
+            placeholder="What should this player do?"
+            style={{ width: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'white', padding: '6px 8px', borderRadius: 6, fontSize: 12, outline: 'none', minHeight: 60, resize: 'vertical' }}
+          />
+        </div>
+      )}
 
       <div style={{ background: '#e8a83e10', border: '1px solid #e8a83e30', borderRadius: 8, padding: '8px 10px', marginTop: 16, fontSize: 11, color: 'var(--accent)', fontWeight: 700, lineHeight: 1.5 }}>
         Drag players on the court to edit their positions for Phase {phIdx + 1}.
