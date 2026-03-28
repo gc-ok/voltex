@@ -1,18 +1,20 @@
 import { create } from 'zustand';
 import { Play, PlayerId, PositionMap } from '@/data/types';
 import { PLAYS } from '@/data/plays';
-import { CW, CH, PR } from '@/data/constants';
+import { CW, CH, PR, BR } from '@/data/constants'; 
 import { validate, Violation } from '@/utils/validate';
-import { usePlaybookStore, resolvePlay } from './usePlaybookStore'; // Bring in resolvePlay to get adapted coordinates!
+import { usePlaybookStore, resolvePlay } from './usePlaybookStore';
+
+type DragTarget = PlayerId | 'BALL';
 
 interface EditorState {
   edits: Record<string, Play>;
   mods: Record<string, boolean>;
   violations: Violation[];
-  dragId: PlayerId | null;
+  dragId: DragTarget | null; 
   dragOff: { x: number; y: number };
   getPlay: (id: string) => Play;
-  startDrag: (pid: PlayerId, offsetX: number, offsetY: number) => void;
+  startDrag: (pid: DragTarget, offsetX: number, offsetY: number) => void; 
   doDrag: (x: number, y: number, playId: string, phIdx: number) => void;
   endDrag: () => void;
   resetEdits: (id: string) => void;
@@ -26,10 +28,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   dragOff: { x: 0, y: 0 },
 
   getPlay: (id) => {
-    // If we have an active edit, return that.
     if (get().edits[id]) return get().edits[id];
-    
-    // Otherwise, return the adapted system play (so they edit from their actual team positions, not stock defaults)
     return resolvePlay(id);
   },
 
@@ -41,23 +40,35 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { edits, dragId, dragOff } = get();
     if (!dragId) return;
 
-    // Create edit copy if needed. Use resolvePlay so we start from their adapted team positions!
     let editPlay = edits[playId];
     if (!editPlay) {
       const original = resolvePlay(playId);
       if (!original) return;
       editPlay = JSON.parse(JSON.stringify(original));
+    } else {
+      // 🚨 FIX: Shallow clone the play and phases so React detects the change instantly
+      editPlay = { ...editPlay };
+      editPlay.phases = [...editPlay.phases];
+      editPlay.phases[phIdx] = { ...editPlay.phases[phIdx] };
     }
 
-    const phase = editPlay.phases[phIdx] || editPlay.phases[0];
-    if (!phase.pos[dragId]) return;
+    const phase = editPlay.phases[phIdx];
 
-    phase.pos[dragId] = {
-      x: Math.max(PR + 4, Math.min(CW - PR - 4, x - dragOff.x)),
-      y: Math.max(PR + 4, Math.min(CH - PR - 4, y - dragOff.y)),
-    };
+    if (dragId === 'BALL') {
+       phase.ball = {
+         x: Math.max(BR, Math.min(CW - BR, x - dragOff.x)),
+         y: Math.max(BR, Math.min(CH - BR, y - dragOff.y)),
+       };
+    } else {
+      if (!phase.pos[dragId]) return;
+      phase.pos = { ...phase.pos };
+      phase.pos[dragId] = {
+        x: Math.max(PR + 4, Math.min(CW - PR - 4, x - dragOff.x)),
+        y: Math.max(PR + 4, Math.min(CH - PR - 4, y - dragOff.y)),
+      };
+    }
 
-    const violations = validate(phase.pos, phase.label, editPlay.cat);
+    const violations = dragId === 'BALL' ? get().violations : validate(phase.pos, phase.label, editPlay.cat);
 
     set({
       edits: { ...edits, [playId]: editPlay },

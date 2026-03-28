@@ -26,15 +26,16 @@ interface TeamState {
   rotation: Rotation;
   formationCtx: FormationContext;
   rotationDefaults: Record<string, RotationDefaults>;
-  receiveTransition: ReceiveTransition; // NEW
-  setReceiveTransition: (rt: ReceiveTransition) => void; // NEW
+  receiveTransition: ReceiveTransition; 
+  setReceiveTransition: (rt: ReceiveTransition) => void; 
   
   setSystem: (system: System) => void;
   setRotation: (rotation: Rotation) => void;
   setFormationCtx: (ctx: FormationContext) => void;
   getCurrentPositions: () => PositionMap;
   updatePosition: (pid: PlayerId, x: number, y: number) => void;
-  updatePhasePosition: (rotation: Rotation, scenario: 'serve' | 'receive', phaseIndex: number, pid: PlayerId, x: number, y: number) => void;
+  // 🚨 ALLOW 'BALL' as a valid ID here!
+  updatePhasePosition: (rotation: Rotation, scenario: 'serve' | 'receive', phaseIndex: number, pid: PlayerId | 'BALL', x: number, y: number) => void;
   resetRotation: (system: System, rotation: Rotation) => void;
   resetRotationPhases: (system: System, rotation: Rotation, scenario: 'serve' | 'receive') => void;
 
@@ -127,7 +128,6 @@ export const useTeamStore = create<TeamState>()(
       formationCtx: 'serveReceive' as FormationContext,
       rotationDefaults: cloneDefaults(),
       
-      // NEW TRANSITION SETTINGS
       receiveTransition: 'switch-late' as ReceiveTransition,
       setReceiveTransition: (type) => set((s) => {
         const updated = { ...s.rotationDefaults };
@@ -174,6 +174,7 @@ export const useTeamStore = create<TeamState>()(
         };
       }),
 
+      // 🚨 UPDATED LOGIC TO HANDLE BALL
       updatePhasePosition: (rotation, scenario, phaseIndex, pid, x, y) => set((s) => {
         const key = rotKey(s.system, rotation);
         const rd = s.rotationDefaults[key];
@@ -181,10 +182,19 @@ export const useTeamStore = create<TeamState>()(
         const phasesKey = scenario === 'serve' ? 'servePhases' : 'receivePhases';
         const phases = [...rd[phasesKey]];
         if (!phases[phaseIndex]) return s;
-        phases[phaseIndex] = {
-          ...phases[phaseIndex],
-          pos: { ...phases[phaseIndex].pos, [pid]: { x, y } },
-        };
+        
+        if (pid === 'BALL') {
+          phases[phaseIndex] = {
+            ...phases[phaseIndex],
+            ball: { x, y },
+          };
+        } else {
+          phases[phaseIndex] = {
+            ...phases[phaseIndex],
+            pos: { ...phases[phaseIndex].pos, [pid]: { x, y } },
+          };
+        }
+        
         return {
           rotationDefaults: {
             ...s.rotationDefaults,

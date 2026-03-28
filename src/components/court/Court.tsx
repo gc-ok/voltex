@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useCallback, useMemo } from 'react';
-import { CW, CH, PR, NET_Y } from '@/data/constants';
+import { CW, CH, PR, BR, NET_Y } from '@/data/constants'; // 👈 Added BR here
 import { PD } from '@/data/players';
 import { PlayerId, PositionMap, XY } from '@/data/types';
 import { usePlaybookStore, getPlay, resolvePlay } from '@/stores/usePlaybookStore';
@@ -22,7 +22,7 @@ import { useAnimationLoop } from '@/hooks/useAnimationLoop';
 import { useQuizLoop } from '@/hooks/useQuizLoop';
 import { useTeamAnimLoop } from '@/hooks/useTeamAnimLoop';
 import { PlayerTooltip } from './PlayerTooltip';
-import { validateRotation } from '@/utils/validate'; // Removed getRotationLayout
+import { validateRotation } from '@/utils/validate';
 
 export function Court() {
   useAnimationLoop();
@@ -30,7 +30,8 @@ export function Court() {
   useTeamAnimLoop();
 
   const svgRef = useRef<SVGSVGElement>(null);
-  const teamDrag = useRef<{ pid: PlayerId; ox: number; oy: number } | null>(null);
+  // 👈 Allow 'BALL' as a valid drag target
+  const teamDrag = useRef<{ pid: PlayerId | 'BALL'; ox: number; oy: number } | null>(null);
   const [tooltip, setTooltip] = React.useState<{
     pid: PlayerId; x: number; y: number;
   } | null>(null);
@@ -47,6 +48,9 @@ export function Court() {
   const quizProg = useQuizStore(s => s.quizProg);
   const qIdx = useQuizStore(s => s.qIdx);
   const qDone = useQuizStore(s => s.qDone);
+  
+  // 👈 THE REACTIVITY FIX: Subscribing to edits directly ensures Court re-renders on every ball drag frame!
+  const currentEditPlay = useEditorStore(s => s.edits[pid]);
   
   const setupStep = useTeamStore(s => s.setupStep);
   const playerNames = useTeamStore(s => s.playerNames);
@@ -76,10 +80,11 @@ export function Court() {
   const isAnimating = isLibOrStrat && (playing || prog > 0);
   const isQuizAnimating = isQuiz && !qDone;
 
-  const play = isTeam ? null : (isEditing ? useEditorStore.getState().getPlay(pid) : resolvePlay(pid));
+  // 👈 Use currentEditPlay if we are editing so the state updates live
+  const play = isTeam ? null : (isEditing ? (currentEditPlay || resolvePlay(pid)) : resolvePlay(pid));
 
   let positions: PositionMap;
-  let ball: XY;
+  let ball: XY | null = null;
   let violatedIds = new Set<PlayerId>();
   let currentPhaseLabel = '';
   let activeViolations: string[] = [];
@@ -135,21 +140,17 @@ export function Court() {
     currentPhaseLabel = fallbackPlay.phases[0].label || '';
   }
 
-  // We only run rotation validation in the setup wizard during the pre-serve phase
   const isPhaseOne = currentPhaseLabel.toLowerCase().includes('serve receive') || 
                      currentPhaseLabel.toLowerCase().includes('pre-serve');
-
-  // Ensure validation ONLY runs if the animation is completely stopped at the start (prog = 0)
   const isAnimationStopped = !teamAnimPlaying && teamAnimProg === 0;
 
   if (tab === 'setup' && isPhaseOne && isAnimationStopped) {
     const isServing = teamAnimScenario === 'serve';
-    
     const rotationViolations = validateRotation(positions, teamRotation, isServing);
     rotationViolations.forEach(v => {
       violatedIds.add(v.ids[0]);
       violatedIds.add(v.ids[1]);
-      activeViolations.push(v.msg); // 👈 NEW: Save the message for the UI
+      activeViolations.push(v.msg); 
     });
   } else if (isEditing) {
     violatedIds = new Set(editorViolations.flatMap(v => v.ids));
@@ -196,25 +197,28 @@ export function Court() {
     if (!pt) return;
 
     let curPos: PositionMap;
+    let curBall: XY | null = null; 
+
     if (curTab === 'myteam' || curTab === 'setup') {
       const pbState = usePlaybookStore.getState();
+      const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
+      const tRd = useTeamStore.getState().rotationDefaults[tKey];
+      
       if (curTab === 'setup' && pbState.teamAnimScenario) {
-        const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
-        const tRd = useTeamStore.getState().rotationDefaults[tKey];
         const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];
         if (tPhases.length > 0) {
           const tResult = lerp(pbState.teamAnimProg, tPhases);
           curPos = tResult.pos;
+          curBall = tResult.ball; // 👈 Extract ball state for setup wizard
         } else {
           curPos = useTeamStore.getState().getCurrentPositions();
         }
       } else if (pbState.teamAnimProg > 0 || pbState.teamAnimPlaying) {
-        const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
-        const tRd = useTeamStore.getState().rotationDefaults[tKey];
         const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];
         if (tPhases.length > 0) {
           const tResult = lerp(pbState.teamAnimProg, tPhases);
           curPos = tResult.pos;
+          curBall = tResult.ball;
         } else {
           curPos = useTeamStore.getState().getCurrentPositions();
         }
@@ -226,10 +230,12 @@ export function Court() {
       const curPlay = useEditorStore.getState().getPlay(curPid);
       const phase = curPlay.phases[curPhIdx] || curPlay.phases[0];
       curPos = phase.pos;
+      curBall = phase.ball;
     }
 
-    let found: PlayerId | null = null;
+    let found: PlayerId | 'BALL' | null = null;
     let best = 999;
+    
     PD.forEach(pl => {
       const p = curPos[pl.id];
       if (!p) return;
@@ -237,29 +243,55 @@ export function Court() {
       if (d < PR + 10 && d < best) { best = d; found = pl.id; }
     });
 
-    if (found) {
-      const p = curPos[found as PlayerId];
-      if (p) {
-        if (curTab === 'myteam' || curTab === 'setup') {
-          teamDrag.current = { pid: found, ox: pt.x - p.x, oy: pt.y - p.y };
-        } else {
-          useEditorStore.getState().startDrag(found, pt.x - p.x, pt.y - p.y);
-        }
-        e.preventDefault();
-      }
+    // 👈 Check for ball drag authorization
+    const pbState = usePlaybookStore.getState();
+    const canDragBall = curIsEditing || (curTab === 'setup' && pbState.teamAnimScenario);
+    
+    if (curBall && canDragBall) {
+       const bd = Math.sqrt((pt.x - curBall.x) ** 2 + (pt.y - curBall.y) ** 2);
+       if (bd < 25 && bd < best) {
+           found = 'BALL';
+       }
     }
-  }, [toSvg]);
+
+    if (found) {
+      if (curTab === 'myteam' || curTab === 'setup') {
+        const isBall = found === 'BALL';
+        // Add non-null assertions (!) just in case TS complains about these too
+        const ox = pt.x - (isBall ? curBall!.x : curPos[found as PlayerId]!.x);
+        const oy = pt.y - (isBall ? curBall!.y : curPos[found as PlayerId]!.y);
+        teamDrag.current = { pid: found, ox, oy };
+      } else {
+        if (found === 'BALL') {
+           useEditorStore.getState().startDrag('BALL', pt.x - curBall!.x, pt.y - curBall!.y);
+        } else {
+           const p = curPos[found as PlayerId];
+           // ✅ FIX: Added a safety check for 'p'
+           if (p) {
+             useEditorStore.getState().startDrag(found as PlayerId, pt.x - p.x, pt.y - p.y);
+           }
+        }
+      }
+      e.preventDefault();
+    }
+  }, [toSvg, currentEditPlay]); // Added currentEditPlay to dependencies
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
     if (!svg) return;
 
     const curTab = usePlaybookStore.getState().tab;
+    
     if (teamDrag.current && (curTab === 'myteam' || curTab === 'setup')) {
       const pt = toSvg(e);
       if (pt) {
-        const nx = Math.max(PR, Math.min(CW - PR, pt.x - teamDrag.current.ox));
-        const ny = Math.max(NET_Y + PR, Math.min(CH - PR, pt.y - teamDrag.current.oy));
+        const dragPid = teamDrag.current.pid;
+        const isBall = dragPid === 'BALL';
+        const radius = isBall ? BR : PR;
+        
+        // 👈 Ball doesn't have the NET_Y constraint, allowing you to drag it across the net!
+        const nx = Math.max(radius, Math.min(CW - radius, pt.x - teamDrag.current.ox));
+        const ny = Math.max(isBall ? radius : NET_Y + PR, Math.min(CH - radius, pt.y - teamDrag.current.oy));
 
         const pbState = usePlaybookStore.getState();
         if (!pbState.teamAnimPlaying && (pbState.teamAnimProg > 0 || pbState.teamAnimProg === 0) && curTab === 'setup') {
@@ -272,7 +304,7 @@ export function Court() {
               useTeamStore.getState().rotation,
               pbState.teamAnimScenario,
               phIdx,
-              teamDrag.current.pid,
+              dragPid, // Safely handles 'BALL' now
               nx, ny
             );
             setTooltip(null);
@@ -280,7 +312,9 @@ export function Court() {
           }
         }
 
-        useTeamStore.getState().updatePosition(teamDrag.current.pid, nx, ny);
+        if (!isBall) {
+          useTeamStore.getState().updatePosition(dragPid as PlayerId, nx, ny);
+        }
       }
       setTooltip(null);
       return;
@@ -306,35 +340,14 @@ export function Court() {
     const isQuizAnim = curTab === 'quiz' && !useQuizStore.getState().qDone;
 
     let curPos: PositionMap;
-    if (curTab === 'myteam' || curTab === 'setup') {
-      const pbState = usePlaybookStore.getState();
-      const tKey = rotKey(useTeamStore.getState().system, useTeamStore.getState().rotation);
-      const tRd = useTeamStore.getState().rotationDefaults[tKey];
-      
-      if (curTab === 'setup' && pbState.teamAnimScenario) {
-        const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];
-        if (tPhases.length > 0) {
-          curPos = lerp(pbState.teamAnimProg, tPhases).pos;
-        } else {
-          curPos = useTeamStore.getState().getCurrentPositions();
-        }
-      } else if (pbState.teamAnimProg > 0 || pbState.teamAnimPlaying) {
-        const tPhases = tRd ? (pbState.teamAnimScenario === 'serve' ? tRd.servePhases : tRd.receivePhases) : [];
-        if (tPhases.length > 0) {
-          curPos = lerp(pbState.teamAnimProg, tPhases).pos;
-        } else {
-          curPos = useTeamStore.getState().getCurrentPositions();
-        }
-      } else {
-        curPos = useTeamStore.getState().getCurrentPositions();
-      }
-    } else if (curIsAnimating) {
+    if (curIsAnimating) {
       curPos = lerp(curProg, getPlay(curPid).phases).pos;
     } else if (isQuizAnim) {
       const q = QUIZ[useQuizStore.getState().qIdx];
       curPos = q ? lerp(useQuizStore.getState().quizProg, getPlay(q.pid).phases).pos : (getPlay(curPid).phases[curPhIdx] || getPlay(curPid).phases[0]).pos;
     } else if (usePlaybookStore.getState().isEditing) {
-      curPos = (useEditorStore.getState().getPlay(curPid).phases[curPhIdx] || getPlay(curPid).phases[0]).pos;
+      // 👈 Use the live editing copy if it exists for accurate tooltips
+      curPos = (currentEditPlay?.phases[curPhIdx] || getPlay(curPid).phases[curPhIdx] || getPlay(curPid).phases[0]).pos;
     } else {
       curPos = (getPlay(curPid).phases[curPhIdx] || getPlay(curPid).phases[0]).pos;
     }
@@ -360,7 +373,7 @@ export function Court() {
     } else {
       setTooltip(null);
     }
-  }, [toSvg]);
+  }, [toSvg, currentEditPlay]); // Added currentEditPlay to dependencies
 
   const handleMouseUp = useCallback(() => {
     teamDrag.current = null;
@@ -373,9 +386,13 @@ export function Court() {
     useEditorStore.getState().endDrag();
   }, []);
 
-  // 🌟 THE COURT HIDING LOGIC: Hidden during early setup steps unless an animation is playing!
+  // 🌟 THE COURT HIDING LOGIC
   const isSetupEarly = tab === 'setup' && setupStep < 5;
   const hideCourt = isSetupEarly && !teamAnimPlaying;
+
+  // 🌟 BALL DRAGGING UI LOGIC
+  const canDragBall = isEditing || (tab === 'setup' && !!teamAnimScenario);
+  const isDraggingBall = dragId === 'BALL' || teamDrag.current?.pid === 'BALL';
 
   return (
     <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: 12, minHeight: 0 }}>
@@ -400,13 +417,13 @@ export function Court() {
             </div>
           </div>
 
-          {/* Phase Label - Hardcoded hex colors for guaranteed contrast */}
+          {/* Phase Label */}
           <div style={{ 
             fontSize: 28, fontWeight: 900, color: '#f8fafc', 
-            background: '#0f172a', // Hardcoded matte slate background
+            background: '#0f172a', 
             padding: '10px 20px', borderRadius: 8,
             boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
-            border: '1px solid #475569', // Hardcoded subtle border
+            border: '1px solid #475569',
             letterSpacing: 0.5, lineHeight: 1.1
           }}>
             {currentPhaseLabel}
@@ -416,7 +433,7 @@ export function Court() {
           {activeViolations.length > 0 && (
             <div style={{
               marginTop: 8,
-              background: '#7f1d1d', // Deep matte red instead of bright neon red
+              background: '#7f1d1d',
               border: '1px solid #ef4444',
               borderRadius: 8,
               padding: '12px 16px',
@@ -465,10 +482,7 @@ export function Court() {
           {/* Ghost trails */}
           {trails && <GhostTrails trailData={trailData} />}
 
-          {/* Ball */}
-          {ball && <BallToken x={ball.x} y={ball.y} />}
-
-          {/* Players */}
+          {/* 1. Render Players FIRST so they are in the background */}
           {PD.map(pl => {
             const p = positions[pl.id];
             if (!p) return null;
@@ -485,16 +499,16 @@ export function Court() {
             );
           })}
 
-          {/* OFFENSIVE PLAY OVERLAY - HIDDEN DURING SETUP */}
+          {/* 2. Render the Ball AFTER the players so it stays on top! */}
+          {ball && <BallToken x={ball.x} y={ball.y} isDraggable={canDragBall} isDragging={isDraggingBall} />}
+
+          {/* OFFENSIVE PLAY OVERLAY */}
           {currentPhaseLabel === 'OFFENSIVE PLAY' && tab !== 'setup' && (
             <g style={{ pointerEvents: 'none' }}>
-              {/* Clean dark slate overlay with 85% opacity */}
               <rect x="0" y="0" width={CW} height={CH} fill="rgba(15, 23, 42, 0.85)" />
-              
               <text x={CW / 2} y={CH / 2} fill="#d4af37" fontSize="48" fontWeight="900" textAnchor="middle" alignmentBaseline="middle" letterSpacing="2" style={{ textShadow: '0px 2px 4px rgba(0,0,0,0.5)' }}>
                 OFFENSIVE PLAY
               </text>
-              
               <text x={CW / 2} y={(CH / 2) + 40} fill="#f8fafc" fontSize="18" fontWeight="600" textAnchor="middle" alignmentBaseline="middle" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.5)' }}>
                 Ball crosses net → Transitioning to base
               </text>
